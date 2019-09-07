@@ -6,7 +6,7 @@ classdef fiber_bank
 	end
 
 	methods
-		function obj = fiber_bank();
+		function obj = fiber_bank()
 		end
 
 		function [fib_params] = get_GI_MMF_1(obj) % graded index / alpha law profile
@@ -14,12 +14,12 @@ classdef fiber_bank
 
 			fib_params('nx') = 100;
 			fib_params('ny') = 100;
-			fib_params('dx') = 0.75e-6;
-			fib_params('dy') = 0.75e-6;
+			fib_params('dx') = 0.3e-6;
+			fib_params('dy') = 0.3e-6;
 			fib_params('center_wavelength_nm') = 1550;
 			fib_params('d_wavelength_nm') = 0.001;
 			fib_params('relative_index_diff_delta') = 0.01;
-			fib_params('a_core_radius_m') = 20*1e-6;
+			fib_params('a_core_radius_m') = 10*1e-6;
 			fib_params('n0_core') = 1.44;
 			fib_params('alpha_power') = 2;
 			fib_params('index_distr') = obj.profile_generator.get_alpha_law_graded_profile(fib_params('nx'), fib_params('ny'), fib_params('dx'), fib_params('dy'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), fib_params('n0_core'), fib_params('alpha_power'));
@@ -69,6 +69,15 @@ classdef fiber_bank
 			fields = fields(:,:,1:D);
 			fields_left = fields_left(:,:,1:D);
 			fields_right = fields_right(:,:,1:D);
+
+			% calculate effective areas
+			Aeff = zeros(1,D);
+			dx = fib_params('dx'); dy = fib_params('dy');
+			for ii = 1:D
+				% Aeff in terms of um^2
+				Aeff(ii) = 1e6*1e6 * sum(sum(abs(fields(:,:,ii)).^2 * dx * dy))^2 / sum(sum(abs(fields(:,:,ii)).^4 * dx * dy));
+			end
+			fib_params('Aeff') = Aeff;
 
 			% calculate the modal dispersion for all modes using the central difference approximation (in arbitrary units, TODO: fix units?)
     		modal_dispersion_coeffs = (neff_right - neff_left)/(2*fib_params('d_wavelength_nm')*1e-9);
