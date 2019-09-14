@@ -20,9 +20,10 @@ classdef fiber_bank
 			fib_params('d_wavelength_nm') = 0.001;
 			fib_params('relative_index_diff_delta') = 0.01;
 			fib_params('a_core_radius_m') = 10*1e-6;
-			fib_params('n0_core') = 1.44;
 			fib_params('alpha_power') = 2;
-			fib_params('index_distr') = obj.profile_generator.get_alpha_law_graded_profile(fib_params('nx'), fib_params('ny'), fib_params('dx'), fib_params('dy'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), fib_params('n0_core'), fib_params('alpha_power'));
+
+			n0_core = obj.get_index_at_wavelength(fib_params('center_wavelength_nm'));
+			fib_params('index_distr') = obj.profile_generator.get_alpha_law_graded_profile(fib_params('nx'), fib_params('ny'), fib_params('dx'), fib_params('dy'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), n0_core, fib_params('alpha_power'));
 		end
 
 
@@ -95,6 +96,27 @@ classdef fiber_bank
 			fib_params('chromatic_dispersion_coeffs') = chromatic_dispersion_coeffs;
 			
 		end
+
+		function [n_fusedSi] = get_index_at_wavelength(obj, wavelength_nm)
+			% Sellmeier coefficients for fused Si - G. P. Agarwal
+			B1 = 0.6961663;
+			B2 = 0.4079426;
+			B3 = 0.8974794;
+
+			L1 = 0.0684043; %um
+			L2 = 0.1162414; %um
+			L3 = 9.896161;  %um
+
+			omega1 = 2*pi*obj.c_speed_light/(L1*1e-6);
+			omega2 = 2*pi*obj.c_speed_light/(L2*1e-6);
+			omega3 = 2*pi*obj.c_speed_light/(L3*1e-6);
+			omega  = 2*pi*obj.c_speed_light/(wavelength_nm*1e-9);
+			n_fusedSi = sqrt(1 + B1*((omega1^2)/(omega1^2 - omega^2)) + ...
+					        B2*((omega2^2)/(omega2^2 - omega^2)) + ...
+					        B3*((omega3^2)/(omega3^2 - omega^2))); 
+
+		end
+
 
 	end
 end

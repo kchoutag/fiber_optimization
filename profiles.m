@@ -1,6 +1,6 @@
 classdef profiles
 	methods(Static)
-
+		
 		function [index_profile, x_grid, y_grid] = get_alpha_law_graded_profile(nx, ny, dx, dy, relative_index_diff_delta, a_core_radius_m, n0_core, alpha_power)
 			% Source: Gloge, D., & Marcatili, E. A. J. (1973). Multimode Theory of Graded‐Core Fibers. Bell System Technical Journal, 52(9), 1563–1578.
 

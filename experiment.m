@@ -54,9 +54,9 @@ classdef experiment
 			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container
 
 			opt_params = containers.Map;
-			opt_params('opt_steps') = 2;
+			opt_params('opt_steps') = 60;
 			opt_params('max_dn') = 1e-4;
-			opt_params('direction') =  "MIN"; %"MAX"; %"MIN";
+			opt_params('direction') =  "MAX"; %"MAX"; %"MIN";
 
 			neff_hist = {fiber_params('neff')};
 
