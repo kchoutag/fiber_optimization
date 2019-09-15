@@ -21,29 +21,61 @@ classdef utils
             end
 		end
 
-		function plot_results(fig_name, fiber_params)
-			dsfig(fig_name);
-			
-			x_arr = linspace(-fiber_params('dx')*fiber_params('nx')*1e6/2, fiber_params('dx')*fiber_params('nx')*1e6/2, fiber_params('nx'));
-			y_arr = linspace(-fiber_params('dy')*fiber_params('ny')*1e6/2, fiber_params('dy')*fiber_params('ny')*1e6/2, fiber_params('ny'));
-			
-			subplot(221);
-			n_clad = utils.get_index_at_wavelength(fiber_params('center_wavelength_nm'));
-			n_xy = n_clad + fiber_params('index_distr_offset_from_cladding');
-			imagesc(x_arr, y_arr, n_xy); axis square; colorbar;
-            xlabel('x (\mum)'); ylabel(' y (\mum)');
+		function plot_results(opt_fiber_params, init_fiber_params)
+			dsfig('Fiber index profile');
 
-            subplot(222);
-            [X, Y] = meshgrid(x_arr, y_arr);
-			surf(X, Y, n_xy); colorbar;
-			axis square; shading interp;
-			xlabel('x (\mum)');
-			ylabel('y (\mum)');
+			if(~opt_fiber_params('axially_symm'))
+				x_arr = linspace(-opt_fiber_params('dx')*opt_fiber_params('nx')*1e6/2, opt_fiber_params('dx')*opt_fiber_params('nx')*1e6/2, opt_fiber_params('nx'));
+				y_arr = linspace(-opt_fiber_params('dy')*opt_fiber_params('ny')*1e6/2, opt_fiber_params('dy')*opt_fiber_params('ny')*1e6/2, opt_fiber_params('ny'));
+				
+				subplot(121);
+				n_clad = utils.get_index_at_wavelength(opt_fiber_params('center_wavelength_nm'));
+				n_xy = n_clad + opt_fiber_params('nxy_offset_from_cladding');
+				imagesc(x_arr, y_arr, n_xy); axis square; colorbar;
+	            xlabel('x (\mum)'); ylabel(' y (\mum)');
 
-			subplot(223);
-			plot(fiber_params('Aeff'),'--o');
+	            subplot(122);
+	            [X, Y] = meshgrid(x_arr, y_arr);
+				surf(X, Y, n_xy); colorbar;
+				axis square; shading interp;
+				xlabel('x (\mum)'); ylabel('y (\mum)');
+	        else 
+	        	rho_arr = linspace(0, opt_fiber_params('nr')*opt_fiber_params('dr'), opt_fiber_params('nr'));
+	        	n_clad = utils.get_index_at_wavelength(opt_fiber_params('center_wavelength_nm'));
+				n_rho = n_clad + opt_fiber_params('nr_offset_from_cladding');
+				n_rho_init = n_clad + init_fiber_params('nr_offset_from_cladding');
+				subplot(121);
+				plot(rho_arr*1e6, n_rho, rho_arr*1e6, n_rho_init); axis square;
+	            xlabel('r (\mum)'); ylabel('n(r)');
+	            legend('Optimized', 'Initial');
+
+	            subplot(122);
+	            [n_xy, x_arr, y_arr] = profiles.synthesize_nxy_from_nr(n_rho, rho_arr, n_clad);
+	            [X, Y] = meshgrid(x_arr, y_arr);
+	            surf(X*1e6, Y*1e6, n_xy); colorbar;
+				axis square; shading interp;
+				xlabel('x (\mum)'); ylabel('y (\mum)');
+	        end
+	        	
+	       	dsfig('Fiber properties');
+			plot(opt_fiber_params('Aeff'),'--o');
 			xlabel('Mode index'); ylabel('Effective area (\mum^2)');
 			axis tight;
+
+			dsfig('Modes of Optimized Fiber');
+			nx_modes = floor(sqrt(opt_fiber_params('D')));
+			ny_modes = ceil(opt_fiber_params('D')/nx_modes);
+			opt_fields = opt_fiber_params('fields'); 
+			[ny, nx] = size(opt_fields(:,:,1));
+
+			allfields = zeros(nx_modes*nx, ny_modes*ny);
+			for ii = 1:opt_fiber_params('D')
+				nr = floor((ii-1)/ny_modes) + 1;
+				nc = mod(ii-1,ny_modes)+1;
+				allfields((nr-1)*nx+1:nr*nx, (nc-1)*nx+1 : nc*nx) = abs(opt_fields(:,:,ii)).^2;
+			end
+			imagesc(allfields);
+			pbaspect([ny_modes nx_modes 1]); colorbar; axis off;
 		end
 
 		function [n_fusedSi] = get_index_at_wavelength(wavelength_nm)
@@ -68,6 +100,22 @@ classdef utils
 
 		end
 
+		function modal_intensity = integrate_mode_on_circle(modal_field, x_arr, y_arr, rho)
+			% integrate |modal_field|^2 on a circle of radius rho
+			tol = 0.5e-6;
+			modal_intensity = 0;
+			for xx = 1:length(x_arr)
+                xval = x_arr(xx);
+				for yy = 1:length(y_arr)
+                    yval = y_arr(yy);
+					rho_curr = sqrt(xval^2 + yval^2);
+					if (abs(rho_curr - rho) <= tol)
+						modal_intensity = modal_intensity + abs(modal_field(yy,xx))^2;
+					end
+				end
+			end
+		end
+
 		function [fib_params] = solve_fiber_properties(fib_params)
 			addpath('../modesolver-2011-04-22/');
 			n_modes_upper_lim = 70;
@@ -75,12 +123,24 @@ classdef utils
 			lambda_nm = fib_params('center_wavelength_nm');
 			d_lambda_nm = fib_params('d_wavelength_nm');
 
+			if(~isKey(fib_params,'axially_symm'))
+				error('Fiber parameters map does not contain axially_symm key!');
+			end
+
 			% center wavelength
 			n_clad = utils.get_index_at_wavelength(lambda_nm);
-			n_xy = fib_params('index_distr_offset_from_cladding') + n_clad;
-			n_core = max(max(n_xy)); 
-			eps_profile = (n_xy).^2;
-			[fields, neff_aux] = svmodes(lambda_nm*1e-9, n_core, n_modes_upper_lim, fib_params('dx'), fib_params('dy'), eps_profile, '0000', 'scalar');
+			if(fib_params('axially_symm'))
+				rho_arr = linspace(0, fib_params('nr')*fib_params('dr'), fib_params('nr'));
+				[nxy_offset_from_cladding, x_arr, y_arr] = profiles.synthesize_nxy_from_nr(fib_params('nr_offset_from_cladding'), rho_arr, 0);
+				dx = x_arr(2) - x_arr(1); dy = dx;
+			else
+				nxy_offset_from_cladding = fib_params('nxy_offset_from_cladding');
+				dx = fib_params('dx'); dy = fib_params('dy');
+			end
+			nxy = nxy_offset_from_cladding + n_clad;
+			n_core = max(max(nxy)); 
+			eps_profile = (nxy).^2;
+			[fields, neff_aux] = svmodes(lambda_nm*1e-9, n_core, n_modes_upper_lim, dx, dy, eps_profile, '0000', 'scalar');
 			valid_idx = neff_aux > n_clad;
 			fields = fields(:,:,valid_idx);
 			neff = neff_aux(valid_idx);
@@ -89,10 +149,18 @@ classdef utils
 			% left wavelength
 			left_wavelength_nm = lambda_nm - d_lambda_nm;
 			n_clad = utils.get_index_at_wavelength(left_wavelength_nm);
-			n_xy = fib_params('index_distr_offset_from_cladding') + n_clad;
-			n_core = max(max(n_xy)); 
-			eps_profile = (n_xy).^2;
-			[fields_left, neff_aux_left] = svmodes(left_wavelength_nm*1e-9, n_core, n_modes_upper_lim, fib_params('dx'), fib_params('dy'), eps_profile, '0000', 'scalar');
+			if(fib_params('axially_symm'))
+				rho_arr = linspace(0, fib_params('nr')*fib_params('dr'), fib_params('nr'));
+				[nxy_offset_from_cladding, x_arr, y_arr] = profiles.synthesize_nxy_from_nr(fib_params('nr_offset_from_cladding'), rho_arr, 0);
+				dx = x_arr(2) - x_arr(1); dy = dx;
+			else
+				nxy_offset_from_cladding = fib_params('nxy_offset_from_cladding');
+				dx = fib_params('dx'); dy = fib_params('dy');
+			end
+			nxy = nxy_offset_from_cladding + n_clad;
+			n_core = max(max(nxy)); 
+			eps_profile = (nxy).^2;
+			[fields_left, neff_aux_left] = svmodes(left_wavelength_nm*1e-9, n_core, n_modes_upper_lim, dx, dy, eps_profile, '0000', 'scalar');
 			valid_idx = neff_aux_left > n_clad;
 			fields_left = fields_left(:,:,valid_idx);
 			neff_left = neff_aux_left(valid_idx);
@@ -101,10 +169,18 @@ classdef utils
 			% right wavelength
 			right_wavelength_nm = lambda_nm + d_lambda_nm;
 			n_clad = utils.get_index_at_wavelength(right_wavelength_nm);
-			n_xy = fib_params('index_distr_offset_from_cladding') + n_clad;
-			n_core = max(max(n_xy)); 
-			eps_profile = (n_xy).^2;
-			[fields_right, neff_aux_right] = svmodes(right_wavelength_nm*1e-9, n_core, n_modes_upper_lim, fib_params('dx'), fib_params('dy'), eps_profile, '0000', 'scalar');
+			if(fib_params('axially_symm'))
+				rho_arr = linspace(0, fib_params('nr')*fib_params('dr'), fib_params('nr'));
+				[nxy_offset_from_cladding, x_arr, y_arr] = profiles.synthesize_nxy_from_nr(fib_params('nr_offset_from_cladding'), rho_arr, 0);
+				dx = x_arr(2) - x_arr(1); dy = dx;
+			else
+				nxy_offset_from_cladding = fib_params('nxy_offset_from_cladding');
+				dx = fib_params('dx'); dy = fib_params('dy');
+			end
+			nxy = nxy_offset_from_cladding + n_clad;
+			n_core = max(max(nxy)); 
+			eps_profile = (nxy).^2;
+			[fields_right, neff_aux_right] = svmodes(right_wavelength_nm*1e-9, n_core, n_modes_upper_lim, dx, dy, eps_profile, '0000', 'scalar');
 			valid_idx = neff_aux_right > n_clad;
 			fields_right = fields_right(:,:,valid_idx);
 			neff_right = neff_aux_right(valid_idx);
@@ -126,9 +202,8 @@ classdef utils
 			fields_left = fields_left(:,:,1:D);
 			fields_right = fields_right(:,:,1:D);
 
-			% calculate effective areas
+			% calculate effective areas (in [um^2] units)
 			Aeff = zeros(1,D);
-			dx = fib_params('dx'); dy = fib_params('dy');
 			for ii = 1:D
 				% Aeff in terms of um^2
 				Aeff(ii) = 1e6*1e6 * sum(sum(abs(fields(:,:,ii)).^2 * dx * dy))^2 / sum(sum(abs(fields(:,:,ii)).^4 * dx * dy));
@@ -138,27 +213,26 @@ classdef utils
 			% calculate the modal dispersion for all modes using the central difference approximation (in arbitrary units, TODO: fix units?)
     		modal_dispersion_coeffs = (neff_right - neff_left)/(2*fib_params('d_wavelength_nm')*1e-9);
 
-    		% calculate chromatic dispersion for all modes (in arbitrary units)
-    		%chromatic_dispersion_coeffs = (-fib_params('center_wavelength_nm')*1e-9/(c * (fib_params('d_wavelength_nm')*1e-9)^2)) * ...
-			%   				  (neff_left + neff_right - 2*neff);
-
+    		% calculate chromatic dispersion for all modes (in [ps/nm*km] units)
 			k0 = 2*pi/(lambda_nm*1e-9);
 			beta = k0*neff; beta_left = k0*neff_left; beta_right = k0*neff_right;
 			d_omega = (-2*pi*c/((lambda_nm*1e-9)^2)) * d_lambda_nm * 1e-9;
 			beta2 = (beta_left + beta_right - 2*beta)/(d_omega^2);
-			chromatic_dispersion_coeffs = (-2*pi*c/((lambda_nm*1e-9)^2)) * beta2; % units ps/(nm*km) % TODO check units-how to convert to ps, nm and km?
+			scale_smm_to_psnmkm = 1e6; % conversion from s/(m*m) to ps/(nm*km)
+			chromatic_dispersion_coeffs_psnmkm = (-2*pi*c/((lambda_nm*1e-9)^2)) * beta2 * scale_smm_to_psnmkm; % units ps/(nm*km)
 
 			% store all parameters
 			fib_params('D') = D;
 			fib_params('fields') = fields; fib_params('fields_left') = fields_left; fib_params('fields_right') = fields_right;
 			fib_params('neff') = neff; fib_params('neff_left') = neff_left; fib_params('neff_right') = neff_right;
 
-			fib_params('modal_dispersion_coeffs') = modal_dispersion_coeffs;
-			fib_params('chromatic_dispersion_coeffs') = chromatic_dispersion_coeffs;
+			fib_params('MD_coeffs') = modal_dispersion_coeffs;
+			fib_params('CD_coeffs_psnmkm') = chromatic_dispersion_coeffs_psnmkm;
 			
 		end
 
 		function c = get_speed_light()
+
 			c = 299792458; % meters per second
 		end
 		

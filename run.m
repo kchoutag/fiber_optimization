@@ -5,7 +5,7 @@ if (feature('ShowFigureWindows') && strcmp(get(0,'DefaultFigureVisible'), 'on'))
 end
 
 test = experiment();
-test.run_MMF_GI_reduce_coupling();
+test.MMF_GI_freeform_reduce_coupling();
 %test.run_playground();
 
 toc;

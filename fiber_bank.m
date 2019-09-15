@@ -8,7 +8,7 @@ classdef fiber_bank
 		function obj = fiber_bank()
 		end
 
-		function [fib_params] = get_GI_MMF_1(obj) % graded index / alpha law profile
+		function [fib_params] = get_GI_MMF_1(obj) % graded index alpha=2 profile (free-form)
 			u = utils();
             fib_params = containers.Map;
 
@@ -17,14 +17,33 @@ classdef fiber_bank
 			fib_params('dx') = 0.3e-6;
 			fib_params('dy') = 0.3e-6;
 			fib_params('center_wavelength_nm') = 1550;
-			fib_params('d_wavelength_nm') = 0.001;
+			fib_params('d_wavelength_nm') = 0.01;
 			fib_params('relative_index_diff_delta') = 0.01;
 			fib_params('a_core_radius_m') = 10*1e-6;
 			fib_params('alpha_power') = 2;
+			fib_params('axially_symm') = false;
 
 			n_clad = u.get_index_at_wavelength(fib_params('center_wavelength_nm'));
-			[dn_fiber, ~, ~, ~] = obj.profile_generator.get_alpha_law_graded_profile(fib_params('nx'), fib_params('ny'), fib_params('dx'), fib_params('dy'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), n_clad, fib_params('alpha_power'));
-			fib_params('index_distr_offset_from_cladding') = dn_fiber;
+			[dn_fiber, ~, ~, ~] = obj.profile_generator.get_nxy_alpha_law_graded_profile(fib_params('nx'), fib_params('ny'), fib_params('dx'), fib_params('dy'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), n_clad, fib_params('alpha_power'));
+			fib_params('nxy_offset_from_cladding') = dn_fiber;
+		end
+
+		function [fib_params] = get_GI_MMF_2(obj) % graded index alpha=2 profile (axially-symmetric)
+			u = utils();
+            fib_params = containers.Map;
+
+			fib_params('nr') = 100;
+			fib_params('dr') = 0.15e-6;
+			fib_params('center_wavelength_nm') = 1550;
+			fib_params('d_wavelength_nm') = 0.01;
+			fib_params('relative_index_diff_delta') = 0.01;
+			fib_params('a_core_radius_m') = 10*1e-6;
+			fib_params('alpha_power') = 2;
+			fib_params('axially_symm') = true;
+
+			n_clad = u.get_index_at_wavelength(fib_params('center_wavelength_nm'));
+			[dn_fiber, ~, ~] = obj.profile_generator.get_nr_alpha_law_graded_profile(fib_params('nr'), fib_params('dr'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), n_clad, fib_params('alpha_power'));
+			fib_params('nr_offset_from_cladding') = dn_fiber;
 		end
 
 	end
