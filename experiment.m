@@ -44,7 +44,7 @@ classdef experiment
 			axis tight;
 		end
 
-		function obj = run_playground(obj) % workspace for debugging and/or developing new fiber designs
+		function obj = MMI_GI_radial_reduce_coupling(obj)
 			fiber_params = obj.bank.get_GI_MMF_2();
 			fiber_params = utils.solve_fiber_properties(fiber_params);
 
@@ -71,6 +71,43 @@ classdef experiment
 				utils.plot_cell_array('neff evolution', 1:nn+1, neff_hist, 'Iteration', 'Effective Index');
 				utils.plot_results(fiber_params, init_fiber_params);
 
+				drawnow;
+			end
+		end
+
+		function obj = run_playground(obj) % workspace for debugging and/or developing new fiber designs
+			fiber_params = obj.bank.get_SI_SMF_1(); %obj.bank.get_GI_SMF_1();
+			fiber_params = utils.solve_fiber_properties(fiber_params);
+
+			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container
+
+			opt_params = containers.Map;
+			opt_params('opt_steps') = 50;
+			opt_params('max_dn') = 0.5e-4;
+			opt_params('direction') =  "MAX"; 
+
+			rms_CD_hist = [rms(fiber_params('CD_coeffs_psnmkm'))];
+			CD_coeffs_hist = {fiber_params('CD_coeffs_psnmkm')};
+
+			for nn = 1:opt_params('opt_steps')
+				disp(sprintf('Running iteration %d of %d...', nn, opt_params('opt_steps')));
+				% compute and apply the index update
+				index_update = obj.optimizer.opt_chromatic_dispersion_radial(fiber_params, init_fiber_params, opt_params);
+				fiber_params('nr_offset_from_cladding') = fiber_params('nr_offset_from_cladding') + index_update;
+
+				% update the realized fiber properties
+				fiber_params = utils.solve_fiber_properties(fiber_params);
+
+				% update the history
+				rms_CD_hist = [rms_CD_hist rms(fiber_params('CD_coeffs_psnmkm'))];
+				CD_coeffs_hist{end+1} = fiber_params('CD_coeffs_psnmkm');
+
+				dsfig('rms CD evolution');
+				plot(1:nn+1, rms_CD_hist);
+				xlabel('Iteration'); ylabel('rms chromatic dispersion (ps/nm*km)'); axis tight;
+
+				utils.plot_cell_array('CD evolution', 1:nn+1, CD_coeffs_hist, 'Iteration', 'Chromatic dispersion (ps/nm*km)');
+				utils.plot_results(fiber_params, init_fiber_params);
 				drawnow;
 			end
 		end
