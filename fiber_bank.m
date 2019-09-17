@@ -33,7 +33,7 @@ classdef fiber_bank
             fib_params = containers.Map;
 
 			fib_params('nr') = 100;
-			fib_params('dr') = 0.15e-6;
+			fib_params('dr') = 0.20e-6;
 			fib_params('center_wavelength_nm') = 1550;
 			fib_params('d_wavelength_nm') = 0.01;
 			fib_params('relative_index_diff_delta') = 0.01;

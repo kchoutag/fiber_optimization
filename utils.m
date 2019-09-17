@@ -209,14 +209,18 @@ classdef utils
 				Aeff(ii) = 1e6*1e6 * sum(sum(abs(fields(:,:,ii)).^2 * dx * dy))^2 / sum(sum(abs(fields(:,:,ii)).^4 * dx * dy));
 			end
 			fib_params('Aeff') = Aeff;
+			
+    		d_omega = (-2*pi*c/((lambda_nm*1e-9)^2)) * d_lambda_nm * 1e-9;
+    		k0 = 2*pi/(lambda_nm*1e-9);
+			beta = k0*neff; beta_left = k0*neff_left; beta_right = k0*neff_right;
 
-			% calculate the modal dispersion for all modes using the central difference approximation (in arbitrary units, TODO: fix units?)
-    		modal_dispersion_coeffs = (neff_right - neff_left)/(2*fib_params('d_wavelength_nm')*1e-9);
+			% calculate the modal dispersion for all modes using the central difference approximation (in [ps/m] units)
+			modal_dispersion_coeffs_sm = (beta_right - beta_left)/(2*d_omega); % units s/m
+			scale_sm_to_psm = 1e12;
+			modal_dispersion_coeffs_psm = modal_dispersion_coeffs_sm * scale_sm_to_psm; % units ps/m
+			modal_dispersion_coeffs_psm = modal_dispersion_coeffs_psm - mean(modal_dispersion_coeffs_psm); % make zero mean
 
     		% calculate chromatic dispersion for all modes (in [ps/nm*km] units)
-			k0 = 2*pi/(lambda_nm*1e-9);
-			beta = k0*neff; beta_left = k0*neff_left; beta_right = k0*neff_right;
-			d_omega = (-2*pi*c/((lambda_nm*1e-9)^2)) * d_lambda_nm * 1e-9;
 			beta2 = (beta_left + beta_right - 2*beta)/(d_omega^2);
 			scale_smm_to_psnmkm = 1e6; % conversion from s/(m*m) to ps/(nm*km)
 			chromatic_dispersion_coeffs_psnmkm = (-2*pi*c/((lambda_nm*1e-9)^2)) * beta2 * scale_smm_to_psnmkm; % units ps/(nm*km)
@@ -226,7 +230,7 @@ classdef utils
 			fib_params('fields') = fields; fib_params('fields_left') = fields_left; fib_params('fields_right') = fields_right;
 			fib_params('neff') = neff; fib_params('neff_left') = neff_left; fib_params('neff_right') = neff_right;
 
-			fib_params('MD_coeffs') = modal_dispersion_coeffs;
+			fib_params('MD_coeffs_psm') = modal_dispersion_coeffs_psm;
 			fib_params('CD_coeffs_psnmkm') = chromatic_dispersion_coeffs_psnmkm;
 			
 		end
