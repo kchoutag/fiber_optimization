@@ -90,10 +90,10 @@ classdef optimizers
 			MD_coeffs_psm = fiber_params('MD_coeffs_psm'); % MD coefficients (= group delay ps per unit m) are already zero-mean
 
 			% set the optimization target
-			if(strcmp(opt_params('direction'),'MIN'))
-				step_sign = -1;
-			else
+			if(strcmp(opt_params('direction'),'MIN')) %TODO: check the signs??
 				step_sign = 1;
+			else
+				step_sign = -1;
             end
 
             % compute the index update

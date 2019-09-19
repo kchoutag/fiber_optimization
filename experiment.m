@@ -112,14 +112,14 @@ classdef experiment
 		end
 
 		function obj = MMF_GI_radial_reduce_modal_dispersion(obj)
-			fiber_params = obj.bank.get_GI_MMF_2();
+			fiber_params = obj.bank.get_MMF_withTrench_1();
 			fiber_params = utils.solve_fiber_properties(fiber_params);
 
 			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container
 
 			opt_params = containers.Map;
 			opt_params('opt_steps') = 80;
-			opt_params('max_dn') = 0.5e-4;
+			opt_params('max_dn') = 1e-5;
 			opt_params('direction') =  "MIN"; 
 
 			rms_MD_hist = [rms(fiber_params('MD_coeffs_psm'))];
@@ -141,16 +141,21 @@ classdef experiment
 				utils.plot_cell_array('MD evolution', 1:nn+1, MD_coeffs_hist, 'Iteration', 'Group delay (ps/m)');
 
 				dsfig('rms MD evolution');
-				plot(1:nn+1, rms_MD_hist);
+				plot(1:nn+1, rms_MD_hist, 'linewidth', 2);
 				xlabel('Iteration'); ylabel('rms group delay (ps/m)'); axis tight;
 				
 				utils.plot_results(fiber_params, init_fiber_params);
 				drawnow;
 			end
+
+			lambda_arr = linspace(1500,1600,20)*1e-9;
+			rms_gd_wavelength_variation = test_robustness.vary_wavelength_rms_gd(fiber_params, lambda_arr);
+			utils.plot_cell_array('Wavelength Variation', lambda_arr*1e9, rms_gd_wavelength_variation, 'Wavelength (nm)', 'rms group delay (ps/m)');
+			axis tight;
 		end
 
 		function obj = SMF_SI_increase_CD()
-			fiber_params = obj.bank.get_SI_SMF_1(); %obj.bank.get_GI_SMF_1();
+			fiber_params = obj.bank.get_Corning_SMF28(); %obj.bank.get_GI_SMF_1();
 			fiber_params = utils.solve_fiber_properties(fiber_params);
 
 			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container

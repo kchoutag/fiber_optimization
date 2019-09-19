@@ -35,9 +35,9 @@ classdef fiber_bank
 			fib_params('nr') = 100;
 			fib_params('dr') = 0.20e-6;
 			fib_params('center_wavelength_nm') = 1550;
-			fib_params('d_wavelength_nm') = 0.01;
-			fib_params('relative_index_diff_delta') = 0.01;
-			fib_params('a_core_radius_m') = 10*1e-6;
+			fib_params('d_wavelength_nm') = 0.001;
+			fib_params('relative_index_diff_delta') = 0.00665;
+			fib_params('a_core_radius_m') = 7.5*1e-6;
 			fib_params('alpha_power') = 2;
 			fib_params('axially_symm') = true;
 
@@ -54,7 +54,7 @@ classdef fiber_bank
 			fib_params('nr') = 100;
 			fib_params('dr') = 0.20e-6;
 			fib_params('center_wavelength_nm') = 1550; 
-			fib_params('d_wavelength_nm') = 0.01;
+			fib_params('d_wavelength_nm') = 0.001;
 			fib_params('relative_index_diff_delta') = 0.00665; % need n_co - n_cl = 9.7*1e-3 according to the paper
 			fib_params('a_core_radius_m') = 7.5*1e-6;
 			fib_params('axially_symm') = true;
@@ -65,25 +65,28 @@ classdef fiber_bank
 		end
 
 
-		function [fib_params] = get_GI_SMF_1(obj) % graded index alpha=2 profile (axially-symmetric)
+		function [fib_params] = get_MMF_withTrench_1(obj) % 15-mode strongly-coupled MMF from Sillard et al JLT 2016 Low-Differential-Mode-Group-Delay 9-LP-Mode Fiber
 			u = utils();
             fib_params = containers.Map;
 
 			fib_params('nr') = 100;
-			fib_params('dr') = 0.07e-6;
+			fib_params('dr') = 0.25e-6;
 			fib_params('center_wavelength_nm') = 1550;
+			fib_params('a_core_radius_m') = 14*1e-6;
 			fib_params('d_wavelength_nm') = 0.01;
-			fib_params('relative_index_diff_delta') = 0.01;
-			fib_params('a_core_radius_m') = 2*1e-6;
-			fib_params('alpha_power') = 2;
+			fib_params('relative_index_diff_delta') = 0.0102; % chosen to get a max core-cladding difference of 14.9*1e-3 as per paper.
+			fib_params('trench_width_m') = 4*1e-6;
+			fib_params('trench_dip') = 6*1e-3;
+			fib_params('alpha_power') = 1.94;
 			fib_params('axially_symm') = true;
 
 			n_clad = u.get_index_at_wavelength(fib_params('center_wavelength_nm'));
-			[dn_fiber, ~, ~] = obj.profile_generator.get_nr_alpha_law_graded_profile(fib_params('nr'), fib_params('dr'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), n_clad, fib_params('alpha_power'));
+			[dn_fiber, ~, ~] = obj.profile_generator.get_nr_alpha_law_graded_trench_profile(fib_params('nr'), fib_params('dr'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), n_clad, fib_params('trench_width_m'), fib_params('trench_dip'), fib_params('alpha_power'));
 			fib_params('nr_offset_from_cladding') = dn_fiber;
 		end
 
-		function [fib_params] = get_SI_SMF_1(obj) % step index profile (axially-symmetric)
+		function [fib_params] = get_Corning_SMF28(obj) % step index profile (axially-symmetric)
+			%Fiber from Riishede, J., & Sigmund, O. (2008). Inverse design of dispersion compensating optical fiber using topology optimization. Journal of the Optical Society of America B: Optical Physics, 25(1), 88–97. https://doi.org/10.1364/JOSAB.25.000088
 			u = utils();
             fib_params = containers.Map;
 
