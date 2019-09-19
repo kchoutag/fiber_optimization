@@ -10,7 +10,7 @@ classdef utils
 			end
 			cell_array = nan(dim1,dim2);
 			for ii = 1:dim1
-				cell_array(ii,1:length(cell_in{ii})) = cell_in{ii};
+				cell_array(ii,1:length(cell_in{ii})) = sort(cell_in{ii}); %TODO: sorting is okay here?
             end
             
             if(length(x_vals) > 1)
