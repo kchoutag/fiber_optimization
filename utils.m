@@ -21,6 +21,80 @@ classdef utils
             end
 		end
 
+		function visualize_fiber(fiber_params)
+			dsfig('Fiber index profile');
+
+			if(~fiber_params('axially_symm'))
+				x_arr = linspace(-fiber_params('dx')*fiber_params('nx')*1e6/2, fiber_params('dx')*fiber_params('nx')*1e6/2, fiber_params('nx'));
+				y_arr = linspace(-fiber_params('dy')*fiber_params('ny')*1e6/2, fiber_params('dy')*fiber_params('ny')*1e6/2, fiber_params('ny'));
+				
+				subplot(121);
+				n_clad = utils.get_index_at_wavelength(fiber_params('center_wavelength_nm'));
+				n_xy = n_clad + fiber_params('nxy_offset_from_cladding');
+				imagesc(x_arr, y_arr, n_xy); axis square; colorbar;
+	            xlabel('x (\mum)'); ylabel(' y (\mum)');
+
+	            subplot(122);
+	            [X, Y] = meshgrid(x_arr, y_arr);
+				surf(X, Y, n_xy); colorbar;
+				axis square; shading interp;
+				xlabel('x (\mum)'); ylabel('y (\mum)');
+	        else 
+	        	rho_arr = linspace(0, fiber_params('nr')*fiber_params('dr'), fiber_params('nr'));
+	        	n_clad = utils.get_index_at_wavelength(fiber_params('center_wavelength_nm'));
+				n_rho = n_clad + fiber_params('nr_offset_from_cladding');
+
+				subplot(121);
+				plot(rho_arr*1e6, (n_rho-n_clad)*1e3, 'linewidth', 2); axis square;
+	            xlabel('r (\mum)'); ylabel('n(r) - n_{clad} \times 10^{-3}');
+
+	            subplot(122);
+	            [n_xy, x_arr, y_arr] = profiles.synthesize_nxy_from_nr(n_rho, rho_arr, n_clad);
+	            [X, Y] = meshgrid(x_arr, y_arr);
+	            surf(X*1e6, Y*1e6, n_xy); colorbar;
+				axis square; shading interp;
+				xlabel('x (\mum)'); ylabel('y (\mum)');
+	        end
+	        	
+	       	dsfig('Fiber properties');
+	       	
+	       	subplot(221);
+			bar(fiber_params('Aeff'));
+			xlabel('Mode index'); ylabel('Effective area (\mum^2)');
+			axis square; axis tight;
+
+			subplot(222);
+			bar(fiber_params('MD_coeffs_psm'));
+			xlabel('Mode index'); ylabel('Group delays (ps/m)');
+			axis square; axis tight;
+
+			subplot(223);
+			bar(fiber_params('CD_coeffs_psnmkm'));
+			xlabel('Mode index'); ylabel('Chromatic dispersion (ps/nm*km)');
+			axis square; axis tight;
+
+			subplot(224);
+			bar((fiber_params('neff') - n_clad)*1e3);
+			xlabel('Mode index'); ylabel('n_{eff} - n_{clad} (\times 10^{-3})');
+			axis square; axis tight;
+
+
+			dsfig('Modes of Fiber');
+			nx_modes = floor(sqrt(fiber_params('D')));
+			ny_modes = ceil(fiber_params('D')/nx_modes);
+			opt_fields = fiber_params('fields'); 
+			[ny, nx] = size(opt_fields(:,:,1));
+
+			allfields = zeros(nx_modes*nx, ny_modes*ny);
+			for ii = 1:fiber_params('D')
+				nr = floor((ii-1)/ny_modes) + 1;
+				nc = mod(ii-1,ny_modes)+1;
+				allfields((nr-1)*nx+1:nr*nx, (nc-1)*nx+1 : nc*nx) = abs(opt_fields(:,:,ii)).^2;
+			end
+			imagesc(allfields);
+			pbaspect([ny_modes nx_modes 1]); colorbar; axis off;
+		end
+
 		function plot_results(opt_fiber_params, init_fiber_params)
 			dsfig('Fiber index profile');
 
@@ -119,6 +193,7 @@ classdef utils
 		function [fib_params] = solve_fiber_properties(fib_params)
 			addpath('../modesolver-2011-04-22/');
 			n_modes_upper_lim = 70;
+			tol_neff = 0.1*1e-3; % to remove very-weakly guided modes
 			c = utils.get_speed_light();
 			lambda_nm = fib_params('center_wavelength_nm');
 			d_lambda_nm = fib_params('d_wavelength_nm');
@@ -141,7 +216,7 @@ classdef utils
 			n_core = max(max(nxy)); 
 			eps_profile = (nxy).^2;
 			[fields, neff_aux] = svmodes(lambda_nm*1e-9, n_core, n_modes_upper_lim, dx, dy, eps_profile, '0000', 'scalar');
-			valid_idx = neff_aux > n_clad;
+			valid_idx = neff_aux > n_clad + tol_neff;
 			fields = fields(:,:,valid_idx);
 			neff = neff_aux(valid_idx);
 			D_center = length(neff);
@@ -161,7 +236,7 @@ classdef utils
 			n_core = max(max(nxy)); 
 			eps_profile = (nxy).^2;
 			[fields_left, neff_aux_left] = svmodes(left_wavelength_nm*1e-9, n_core, n_modes_upper_lim, dx, dy, eps_profile, '0000', 'scalar');
-			valid_idx = neff_aux_left > n_clad;
+			valid_idx = neff_aux_left > n_clad + tol_neff;
 			fields_left = fields_left(:,:,valid_idx);
 			neff_left = neff_aux_left(valid_idx);
 			D_left = length(neff_left);
@@ -181,7 +256,7 @@ classdef utils
 			n_core = max(max(nxy)); 
 			eps_profile = (nxy).^2;
 			[fields_right, neff_aux_right] = svmodes(right_wavelength_nm*1e-9, n_core, n_modes_upper_lim, dx, dy, eps_profile, '0000', 'scalar');
-			valid_idx = neff_aux_right > n_clad;
+			valid_idx = neff_aux_right > n_clad + tol_neff;
 			fields_right = fields_right(:,:,valid_idx);
 			neff_right = neff_aux_right(valid_idx);
 			D_right = length(neff_right);
@@ -236,8 +311,44 @@ classdef utils
 		end
 
 		function c = get_speed_light()
-
 			c = 299792458; % meters per second
+		end
+
+		function print_fiber_summary()
+			bank = fiber_bank();
+
+			fib = bank.get_GI_MMF_1();
+			fib = utils.solve_fiber_properties(fib);
+			disp(sprintf('\nGI_MMF_1 @ %.2f nm\n', fib('center_wavelength_nm')));
+			disp(sprintf('D = %d modes', fib('D')));
+			disp(sprintf('rms group delay [ps/m] = %f', rms(fib('MD_coeffs_psm'))));
+			disp(sprintf('rms chromatic dispersion [ps/nm*km] = %f', rms(fib('CD_coeffs_psnmkm'))));
+			disp(sprintf('average modal effective area [um^2] = %f', mean(fib('Aeff'))));
+
+			fib = bank.get_GI_MMF_2();
+			fib = utils.solve_fiber_properties(fib);
+			disp(sprintf('\nGI_MMF_2 @ %.2f nm\n', fib('center_wavelength_nm')));
+			disp(sprintf('D = %d modes', fib('D')));
+			disp(sprintf('rms group delay [ps/m] = %f', rms(fib('MD_coeffs_psm'))));
+			disp(sprintf('rms chromatic dispersion [ps/nm*km] = %f', rms(fib('CD_coeffs_psnmkm'))));
+			disp(sprintf('average modal effective area [um^2] = %f', mean(fib('Aeff'))));
+
+			fib = bank.get_GI_SMF_1();
+			fib = utils.solve_fiber_properties(fib);
+			disp(sprintf('\nGI_SMF_1 @ %.2f nm\n', fib('center_wavelength_nm')));
+			disp(sprintf('D = %d modes', fib('D')));
+			disp(sprintf('rms group delay [ps/m] = %f', rms(fib('MD_coeffs_psm'))));
+			disp(sprintf('rms chromatic dispersion [ps/nm*km] = %f', rms(fib('CD_coeffs_psnmkm'))));
+			disp(sprintf('average modal effective area [um^2] = %f', mean(fib('Aeff'))));
+
+			fib = bank.get_SI_SMF_1();
+			fib = utils.solve_fiber_properties(fib);
+			disp(sprintf('\nSI_SMF_1 @ %.2f nm\n', fib('center_wavelength_nm')));
+			disp(sprintf('D = %d modes', fib('D')));
+			disp(sprintf('rms group delay [ps/m] = %f', rms(fib('MD_coeffs_psm'))));
+			disp(sprintf('rms chromatic dispersion [ps/nm*km] = %f', rms(fib('CD_coeffs_psnmkm'))));
+			disp(sprintf('average modal effective area [um^2] = %f', mean(fib('Aeff'))));
+
 		end
 		
 	end
