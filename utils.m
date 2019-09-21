@@ -1,7 +1,8 @@
 classdef utils
 	methods(Static)
-		function plot_cell_array(fig_name, x_vals, cell_in, x_label, y_label)
+		function plot_cell_array(fig_name, fig_rows, fig_cols, subplot_locs, x_vals, cell_in, x_label, y_label)
 			dsfig(fig_name);
+			subplot(fig_rows, fig_cols, subplot_locs);
 
 			dim1 = length(cell_in);
 			dim2 = 0;

@@ -17,12 +17,25 @@ classdef test_robustness
             u = utils();
 			copy_fib_params = containers.Map(fiber_params.keys, fiber_params.values);
 
-			rms_gd_variation = {};
+			rms_gd_variation = [];
 			for ii = 1:length(lambda_arr)
 				disp(sprintf('Checking wavelength #%d of %d...', ii, length(lambda_arr)));
 				copy_fib_params('center_wavelength_nm') = lambda_arr(ii)*1e9;
 				copy_fib_params = u.solve_fiber_properties(copy_fib_params);
-				rms_gd_variation{end + 1} = rms(copy_fib_params('MD_coeffs_psm'));
+				rms_gd_variation = [rms_gd_variation rms(copy_fib_params('MD_coeffs_psm'))];
+			end
+		end
+
+		function [D_variation] = vary_wavelength_number_modes(fiber_params, lambda_arr)
+            u = utils();
+			copy_fib_params = containers.Map(fiber_params.keys, fiber_params.values);
+
+			D_variation = [];
+			for ii = 1:length(lambda_arr)
+				disp(sprintf('Checking wavelength #%d of %d...', ii, length(lambda_arr)));
+				copy_fib_params('center_wavelength_nm') = lambda_arr(ii)*1e9;
+				copy_fib_params = u.solve_fiber_properties(copy_fib_params);
+				D_variation = [D_variation copy_fib_params('D')];
 			end
 		end
 
