@@ -49,6 +49,27 @@ classdef profiles
 			dn_fiber = n_xy - n_clad;
 		end
 
+		function [dn_fiber, n_clad, x_grid, y_grid] = get_nxy_multicore_profile(nx, ny, dx, dy, n_cores, core_radii_m, core_xlocs, core_ylocs, n_clad, relative_dn)
+			x_grid = linspace(-nx*dx/2, nx*dx/2, nx);
+			y_grid = linspace(-ny*dy/2, ny*dy/2, ny);
+			
+			n_core = n_clad / sqrt(1 - 2*relative_dn);
+			n_xy = n_clad * ones(nx, ny);
+
+			for nn = 1:n_cores
+				for xx = 1:nx
+					for yy = 1:ny
+						ro = sqrt((x_grid(xx)-core_xlocs(nn))^2 + (y_grid(yy)-core_ylocs(nn))^2);
+						if ro <= core_radii_m(nn)
+							% inside the core
+							n_xy(yy,xx) = n_core;
+						end
+					end
+				end
+			end
+			dn_fiber = n_xy - n_clad;
+		end
+
 		function [dn_fiber, n_clad, rho_arr] = get_nr_alpha_law_graded_profile(nr, dr, relative_dn, a_core_radius_m, n_clad, alpha_power)
 			% Source: Physical modeling of 10 gbe optical communication systems - Gholami, Molin and Sillard, JLT 2011
 			% dn_fiber = index variation in (x,y) that is an offset from the cladding index, i.e. n(x,y) = dn_fiber(x,y) + n_clad
@@ -92,6 +113,26 @@ classdef profiles
 			dn_fiber = n_rho - n_clad;
 		end
 
+		function [dn_fiber, n_clad, rho_arr] = get_nr_graded_index_ring_core_profile(nr, dr, relative_dn, ring_radius_m, ring_thickness_m, n_clad, alpha_power)
+			% Source: Feng, F., Guo, X., Gordon, G. S. D., Jin, X. Q., Payne, F. P., Jung, Y., … Wilkinson, T. D. (2016). All-optical mode-group division multiplexing over a graded-index ring-core fiber with single radial mode. 2016 Optical Fiber Communications Conference and Exhibition, OFC 2016, 3–5.
+			rho_arr = linspace(0, nr*dr, nr);
+
+			n_core = n_clad / sqrt(1 - 2*relative_dn);
+			n_rho = n_clad * ones(1, nr);
+			for rr = 1:nr
+				ro = rho_arr(rr);
+				if abs(ro - ring_radius_m)  <= 0.5*ring_thickness_m
+					% inside the ring
+					n_rho(rr) = n_core * sqrt(1 - 2*relative_dn*((ro-ring_radius_m)/(ring_thickness_m/2))^alpha_power);
+				else
+					% outside the ring
+					n_rho(rr) = n_clad;
+				end
+			end
+			dn_fiber = n_rho - n_clad;
+		end
+
+
 		function [dn_fiber, n_clad, rho_arr] = get_nr_step_index_profile(nr, dr, relative_dn, a_core_radius_m, n_clad)
 			% Source: Physical modeling of 10 gbe optical communication systems - Gholami, Molin and Sillard, JLT 2011
 			% dn_fiber = index variation in (x,y) that is an offset from the cladding index, i.e. n(x,y) = dn_fiber(x,y) + n_clad
@@ -111,6 +152,8 @@ classdef profiles
 			end
 			dn_fiber = n_rho - n_clad;
 		end
+
+
 
 	end
 end

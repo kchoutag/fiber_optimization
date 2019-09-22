@@ -56,6 +56,9 @@ classdef optimizers
 				des_neff = linspace(init_neff(1), init_neff(end), init_fiber_params('D'));
 			elseif (opt_params('direction') == 'MAX')
 				des_neff = ones(1,init_fiber_params('D'))*mean(init_neff);
+			elseif (opt_params('direction') == 'RCF_v1') % ring-core fiber (not working...)
+				des_neff = init_neff;
+				des_neff(2) = 0.5*(init_neff(1) + init_neff(3)); % manually set the target
             end
 
             % compute the index update
@@ -71,7 +74,8 @@ classdef optimizers
             d_n_rho = d_n_rho .* (fiber_params('nr_offset_from_cladding') + n_clad);
 
             % normalize index update
-            d_n_rho = opt_params('max_dn')*d_n_rho/max(abs(d_n_rho));
+            small_val = 1e-12; % to prevent divide by zero
+            d_n_rho = opt_params('max_dn')*d_n_rho/max(abs(d_n_rho) + small_val);
 		end
 
 		function [d_n_rho] = opt_modal_dispersion_radial(obj, fiber_params, init_fiber_params, opt_params)

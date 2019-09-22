@@ -60,22 +60,22 @@ classdef utils
 	       	dsfig('Fiber properties');
 	       	
 	       	subplot(221);
-			bar(fiber_params('Aeff'));
+			plot(fiber_params('Aeff'), '-+', 'linewidth', 2);
 			xlabel('Mode index'); ylabel('Effective area (\mum^2)');
 			axis square; axis tight;
 
 			subplot(222);
-			bar(fiber_params('MD_coeffs_psm'));
+			plot(fiber_params('MD_coeffs_psm'), '-+', 'linewidth', 2);
 			xlabel('Mode index'); ylabel('Group delays (ps/m)');
 			axis square; axis tight;
 
 			subplot(223);
-			bar(fiber_params('CD_coeffs_psnmkm'));
+			plot(fiber_params('CD_coeffs_psnmkm'), '-+', 'linewidth', 2);
 			xlabel('Mode index'); ylabel('Chromatic dispersion (ps/nm*km)');
 			axis square; axis tight;
 
 			subplot(224);
-			bar((fiber_params('neff') - n_clad)*1e3);
+			plot((fiber_params('neff') - n_clad)*1e3, '-+', 'linewidth', 2);
 			xlabel('Mode index'); ylabel('n_{eff} - n_{clad} (\times 10^{-3})');
 			axis square; axis tight;
 
@@ -223,7 +223,7 @@ classdef utils
 		function [fib_params] = solve_fiber_properties(fib_params)
 			addpath('../modesolver-2011-04-22/');
 			n_modes_upper_lim = 70;
-			tol_neff = 0.1*1e-3; % to remove very-weakly guided modes
+			tol_neff = 0.15*1e-3; % to remove very-weakly guided modes
 			c = utils.get_speed_light();
 			lambda_nm = fib_params('center_wavelength_nm');
 			d_lambda_nm = fib_params('d_wavelength_nm');
