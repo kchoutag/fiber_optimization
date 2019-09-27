@@ -285,7 +285,7 @@ classdef experiment
 				rms_CD_hist = [rms_CD_hist rms(fiber_params('CD_coeffs_psnmkm'))];
 				CD_coeffs_hist{end+1} = fiber_params('CD_coeffs_psnmkm');
 
-				utils.plot_cell_array('CD evolution', 1:nn+1, CD_coeffs_hist, 'Iteration', 'Chromatic dispersion (ps/nm*km)');
+				utils.plot_cell_array('CD evolution', 1,1,1, 1:nn+1, CD_coeffs_hist, 'Iteration', 'Chromatic dispersion (ps/nm*km)');
 
 				dsfig('rms CD evolution');
 				plot(1:nn+1, rms_CD_hist);
@@ -294,6 +294,18 @@ classdef experiment
 				utils.plot_results(fiber_params, init_fiber_params);
 				drawnow;
 			end
+		end
+
+		function obj = MCF_reduce_MD(obj)
+		end
+
+		function obj = Elliptical_Core_Fiber_optimization(obj)
+		end
+
+		function obj = OAM_reduce_coupling(obj)
+		end
+
+		function obj = OM4_OM5_optimization(obj)
 		end
 
 		function obj = run_playground(obj) % workspace for debugging and/or developing new fiber designs
