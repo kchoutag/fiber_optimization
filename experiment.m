@@ -62,7 +62,7 @@ classdef experiment
 				xlabel('Mode index'); ylabel('(n_{eff} - n_{clad}) \times 10^{-3}');
 				axis square; axis tight;
 
-				utils.plot_cell_array('JLT figure 1', 2, 3, [4 5], 1:nn+1, MD_coeffs_hist, 'Iteration', 'Group delay (ps/m)');
+				utils.plot_cell_array('JLT figure 1', 2, 3, [4 5], 1:nn+1, MD_coeffs_hist, 'Iteration', 'Group delay (ps/m)', 'line');
 				dsfig('JLT figure 1'); subplot(2,3,6);
 				plot(1:nn+1, rms_MD_hist, 'linewidth', 2);
 				xlabel('Iteration'); ylabel('rms group delay (ps/m)'); axis tight;
@@ -80,6 +80,58 @@ classdef experiment
 			legend('Optimized', 'Initial');
 			axis square; axis tight;
 		end
+
+		function obj = RCF_freeform_increase_degeneracies(obj) % see if RCF -> MCF when we try to increase the modal degeneracies
+			fiber_params = obj.bank.get_RCF_3(); %obj.bank.get_RCF_2();
+			fiber_params = utils.solve_fiber_properties(fiber_params);
+
+			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container
+
+			opt_params = containers.Map;
+			opt_params('opt_steps') = 280;
+			opt_params('max_dn') = 2e-4;
+			opt_params('direction') =  "RCF_to_MCF";
+
+			neff_hist = {fiber_params('neff') - fiber_params('n_clad')};
+
+			for nn = 1:opt_params('opt_steps')
+				disp(sprintf('Running iteration %d of %d...', nn, opt_params('opt_steps')));
+				% compute and apply the index update
+				index_update = obj.optimizer.opt_mode_coupling_freeform(fiber_params, init_fiber_params, opt_params);
+
+				fiber_params('nxy_offset_from_cladding') = fiber_params('nxy_offset_from_cladding') + index_update;
+
+				% update the realized fiber properties
+				fiber_params = utils.solve_fiber_properties(fiber_params);
+
+				% update the history
+				neff_hist{end+1} = fiber_params('neff')- fiber_params('n_clad');
+				utils.plot_cell_array('neff evolution for JLT', 1, 3, 1:3, 1:nn+1, neff_hist , 'Iteration', 'n_{eff}-n_{clad}', 'circle');
+				pbaspect([3,1,1]);
+				utils.plot_results(fiber_params, init_fiber_params);
+
+				drawnow;
+			end
+
+			% plot the initial and final modal fields
+			dsfig('modal fields for JLT');
+			init_fields = init_fiber_params('fields'); opt_fields = fiber_params('fields');
+			D_init = init_fiber_params('D'); D_opt = fiber_params('D');
+			[ny, nx] = size(opt_fields(:,:,1));
+			allfields = zeros(2*nx, max(D_init,D_opt)*ny);
+			for ii = 1:D_init
+				nr = 1;
+				nc = ii;
+				allfields((nr-1)*nx+1:nr*nx, (nc-1)*nx+1 : nc*nx) = abs(init_fields(:,:,ii)).^2;
+			end
+			for ii = 1:D_opt
+				nr = 2;
+				nc = ii;
+				allfields((nr-1)*nx+1:nr*nx, (nc-1)*nx+1 : nc*nx) = abs(opt_fields(:,:,ii)).^2;
+			end
+			imagesc(allfields);
+			pbaspect([max(D_init,D_opt) 2 1]); colorbar; axis off;
+		end	
 
 		function obj = MMF_GI_freeform_reduce_coupling(obj)
 			fiber_params = obj.bank.get_GI_MMF_1();
@@ -105,7 +157,7 @@ classdef experiment
 
 				% update the history
 				neff_hist{end+1} = fiber_params('neff');
-				utils.plot_cell_array('neff evolution', 1:nn+1, neff_hist, 'Iteration', 'Effective Index');
+				utils.plot_cell_array('neff evolution', 1:nn+1, neff_hist, 'Iteration', 'Effective Index', 'line');
 				utils.plot_results(fiber_params, init_fiber_params);
 
 				drawnow;
@@ -113,7 +165,7 @@ classdef experiment
 
 			lambda_arr = linspace(1200,1700,20)*1e-9;
 			neff_wavelength_variation = test_robustness.vary_wavelength_neff(fiber_params, lambda_arr);
-			utils.plot_cell_array('wavelength variation', lambda_arr*1e9, neff_wavelength_variation, 'Wavelength (nm)', 'Effective Index');
+			utils.plot_cell_array('wavelength variation', lambda_arr*1e9, neff_wavelength_variation, 'Wavelength (nm)', 'Effective Index', 'line');
 			axis tight;
 		end
 
@@ -141,7 +193,7 @@ classdef experiment
 
 				% update the history
 				neff_hist{end+1} = fiber_params('neff');
-				utils.plot_cell_array('neff evolution', 1,1,1, 1:nn+1, neff_hist, 'Iteration', 'Effective Index');
+				utils.plot_cell_array('neff evolution', 1,1,1, 1:nn+1, neff_hist, 'Iteration', 'Effective Index', 'line');
 				utils.plot_results(fiber_params, init_fiber_params);
 
 				drawnow;
@@ -172,7 +224,7 @@ classdef experiment
 
 				% update the history
 				neff_hist{end+1} = fiber_params('neff');
-				utils.plot_cell_array('neff evolution', 1:nn+1, neff_hist, 'Iteration', 'Effective Index');
+				utils.plot_cell_array('neff evolution', 1:nn+1, neff_hist, 'Iteration', 'Effective Index', 'line');
 				utils.plot_results(fiber_params, init_fiber_params);
 
 				drawnow;
@@ -180,7 +232,7 @@ classdef experiment
 
 			lambda_arr = linspace(1200,1700,20)*1e-9;
 			neff_wavelength_variation = test_robustness.vary_wavelength_neff(fiber_params, lambda_arr);
-			utils.plot_cell_array('wavelength variation', lambda_arr*1e9, neff_wavelength_variation, 'Wavelength (nm)', 'Effective Index');
+			utils.plot_cell_array('wavelength variation', lambda_arr*1e9, neff_wavelength_variation, 'Wavelength (nm)', 'Effective Index', 'line');
 			axis tight;
 		end
 
@@ -212,7 +264,7 @@ classdef experiment
 
 				% update the history
 				neff_hist{end+1} = fiber_params('neff');
-				utils.plot_cell_array('neff evolution', 1:nn+1, neff_hist, 'Iteration', 'Effective Index');
+				utils.plot_cell_array('neff evolution', 1:nn+1, neff_hist, 'Iteration', 'Effective Index', 'line');
 				utils.plot_results(fiber_params, init_fiber_params);
 
 				drawnow;
@@ -223,40 +275,13 @@ classdef experiment
 		%         NOT WORKING       %
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-		function obj = RCF_radial_reduce_coupling(obj) % NOT WORKING
-			fiber_params = obj.bank.get_RCF_1();
-			fiber_params = utils.solve_fiber_properties(fiber_params);
-
-			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container
-
-			opt_params = containers.Map;
-			opt_params('opt_steps') = 100;
-			opt_params('max_dn') = 0.5e-4;
-			opt_params('direction') =  "RCF_v1";%"MIN";
-
-			neff_hist = {fiber_params('neff')};
-
-			for nn = 1:opt_params('opt_steps')
-				disp(sprintf('Running iteration %d of %d...', nn, opt_params('opt_steps')));
-				% compute and apply the index update
-				index_update = obj.optimizer.opt_mode_coupling_radial(fiber_params, init_fiber_params, opt_params);
-				fiber_params('nr_offset_from_cladding') = fiber_params('nr_offset_from_cladding') + index_update;
-
-				% update the realized fiber properties
-				fiber_params = utils.solve_fiber_properties(fiber_params);
-
-				% update the history
-				neff_hist{end+1} = fiber_params('neff');
-				utils.plot_cell_array('neff evolution', 1, 1, 1, 1:nn+1, neff_hist, 'Iteration', 'n_{eff}');
-				utils.plot_results(fiber_params, init_fiber_params);
-
-				drawnow;
-			end
-		end
+		
 
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%     UNDER DEVELOPMENT       %
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+		
 
 		function obj = SMF_SI_increase_CD(obj)
 			fiber_params = obj.bank.get_Corning_SMF28(); %obj.bank.get_GI_SMF_1();
@@ -285,7 +310,7 @@ classdef experiment
 				rms_CD_hist = [rms_CD_hist rms(fiber_params('CD_coeffs_psnmkm'))];
 				CD_coeffs_hist{end+1} = fiber_params('CD_coeffs_psnmkm');
 
-				utils.plot_cell_array('CD evolution', 1,1,1, 1:nn+1, CD_coeffs_hist, 'Iteration', 'Chromatic dispersion (ps/nm*km)');
+				utils.plot_cell_array('CD evolution', 1,1,1, 1:nn+1, CD_coeffs_hist, 'Iteration', 'Chromatic dispersion (ps/nm*km)', 'line');
 
 				dsfig('rms CD evolution');
 				plot(1:nn+1, rms_CD_hist);

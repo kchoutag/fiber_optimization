@@ -113,8 +113,30 @@ classdef profiles
 			dn_fiber = n_rho - n_clad;
 		end
 
+		function [dn_fiber, n_clad, x_grid, y_grid] = get_nxy_graded_index_ring_core_profile(nx, ny, dx, dy, relative_dn, ring_radius_m, ring_thickness_m, n_clad, alpha_power)
+			% Jin, X. Q., Gomez, A., O’Brien, D. C., & Payne, F. P. (2014). Influence of refractive index profile of ring-core fibres for space division multiplexing systems. Proceedings - 2014 Summer Topicals Meeting Series, SUM 2014, 178–179. https://doi.org/10.1109/SUM.2014.98
+			x_grid = linspace(-nx*dx/2, nx*dx/2, nx);
+			y_grid = linspace(-ny*dy/2, ny*dy/2, ny);
+
+			n_core = n_clad / sqrt(1 - 2*relative_dn);
+			n_xy = n_clad * ones(nx, ny);
+			for xx = 1:nx
+				for yy = 1:ny
+					ro = sqrt(x_grid(xx)^2 + y_grid(yy)^2);
+					if abs(ro - ring_radius_m)  <= 0.5*ring_thickness_m
+						% inside the ring
+						n_xy(yy,xx) = n_core * sqrt(1 - 2*relative_dn*((ro-ring_radius_m)/(ring_thickness_m/2))^alpha_power);
+					else
+						% outside the ring
+						n_xy(yy,xx) = n_clad;
+					end
+				end
+			end
+			dn_fiber = n_xy - n_clad;
+		end
+
 		function [dn_fiber, n_clad, rho_arr] = get_nr_graded_index_ring_core_profile(nr, dr, relative_dn, ring_radius_m, ring_thickness_m, n_clad, alpha_power)
-			% Source: Feng, F., Guo, X., Gordon, G. S. D., Jin, X. Q., Payne, F. P., Jung, Y., … Wilkinson, T. D. (2016). All-optical mode-group division multiplexing over a graded-index ring-core fiber with single radial mode. 2016 Optical Fiber Communications Conference and Exhibition, OFC 2016, 3–5.
+			% Jin, X. Q., Gomez, A., O’Brien, D. C., & Payne, F. P. (2014). Influence of refractive index profile of ring-core fibres for space division multiplexing systems. Proceedings - 2014 Summer Topicals Meeting Series, SUM 2014, 178–179. https://doi.org/10.1109/SUM.2014.98
 			rho_arr = linspace(0, nr*dr, nr);
 
 			n_core = n_clad / sqrt(1 - 2*relative_dn);

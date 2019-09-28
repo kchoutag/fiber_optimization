@@ -15,18 +15,23 @@ classdef optimizers
 			curr_neff = fiber_params('neff');
 			curr_fields = fiber_params('fields');
 
+			D_optimize = min(init_fiber_params('D'), D);
+
 			% set the optimization target
-			if(opt_params('direction') == 'MIN')
-				des_neff = linspace(init_neff(1), init_neff(end), init_fiber_params('D'));
-			elseif (opt_params('direction') == 'MAX')
-				des_neff = ones(1,init_fiber_params('D'))*mean(init_neff);
+			if(strcmp(opt_params('direction'), 'MIN'))
+				des_neff = linspace(init_neff(1), init_neff(D_optimize), D_optimize);
+			elseif(strcmp(opt_params('direction'),'MAX'))
+				des_neff = ones(1,D_optimize)*mean(init_neff);
+			elseif(strcmp(opt_params('direction'),'RCF_to_MCF'))
+				%Target the same core index but reduce the current spread of neff during each iteration
+				des_neff = init_neff(1) + 0.5*linspace(0, curr_neff(D_optimize)-curr_neff(1), D_optimize);
             end
 
             % compute the index update
 			d_index_distr = zeros(ny,nx);
 			for xx = 1:nx
 				for yy = 1:ny
-					for mm = 1:min(init_fiber_params('D'), D)
+					for mm = 1:D_optimize
 						d_index_distr(yy,xx) = d_index_distr(yy,xx) - ((curr_neff(mm) - des_neff(mm))/(curr_neff(mm)))*curr_fields(yy,xx,mm)^2;
 					end
 				end
@@ -52,13 +57,10 @@ classdef optimizers
 			y_arr = x_arr;
 
 			% set the optimization target
-			if(opt_params('direction') == 'MIN')
+			if(strcmp(opt_params('direction'), 'MIN'))
 				des_neff = linspace(init_neff(1), init_neff(end), init_fiber_params('D'));
-			elseif (opt_params('direction') == 'MAX')
+			elseif(strcmp(opt_params('direction'),'MAX'))
 				des_neff = ones(1,init_fiber_params('D'))*mean(init_neff);
-			elseif (opt_params('direction') == 'RCF_v1') % ring-core fiber (not working...)
-				des_neff = init_neff;
-				des_neff(2) = 0.5*(init_neff(1) + init_neff(3)); % manually set the target
             end
 
             % compute the index update

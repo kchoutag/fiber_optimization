@@ -1,6 +1,6 @@
 classdef utils
 	methods(Static)
-		function plot_cell_array(fig_name, fig_rows, fig_cols, subplot_locs, x_vals, cell_in, x_label, y_label)
+		function plot_cell_array(fig_name, fig_rows, fig_cols, subplot_locs, x_vals, cell_in, x_label, y_label, style)
 			dsfig(fig_name);
 			subplot(fig_rows, fig_cols, subplot_locs);
 
@@ -15,7 +15,13 @@ classdef utils
             end
             
             if(length(x_vals) > 1)
-                plot(x_vals, cell_array,'-b','linewidth',2);
+            	if(strcmp(style,'line'))
+                	plot(x_vals, cell_array,'-b','linewidth',2);
+                elseif(strcmp(style, 'circle'))
+                	plot(x_vals, cell_array,'ko','markersize',3,'markerfacecolor', 'k');
+                elseif(strcmp(style, 'plus'))
+                	plot(x_vals, cell_array,'+','markersize',2);
+                end
                 xlabel(x_label);
                 ylabel(y_label);
                 axis tight;
@@ -105,22 +111,28 @@ classdef utils
 				n_clad = utils.get_index_at_wavelength(opt_fiber_params('center_wavelength_nm'));
 
 				subplot(131);
+				n_init = n_clad + init_fiber_params('nxy_offset_from_cladding');
+				imagesc(x_arr, y_arr, n_init); axis square; colorbar;
+	            xlabel('x (\mum)'); ylabel(' y (\mum)');
+	            title('n_{init}');
+
+				subplot(132);
 				n_change = opt_fiber_params('nxy_offset_from_cladding') - init_fiber_params('nxy_offset_from_cladding');
 				imagesc(x_arr, y_arr, n_change); axis square; colorbar;
 	            xlabel('x (\mum)'); ylabel(' y (\mum)');
 	            title('n_{opt} - n_{init}');
 
-				subplot(132);
+				subplot(133);
 				n_xy = n_clad + opt_fiber_params('nxy_offset_from_cladding');
 				imagesc(x_arr, y_arr, n_xy); axis square; colorbar;
 	            xlabel('x (\mum)'); ylabel(' y (\mum)');
 	            title('n_{opt}');
 
-	            subplot(133);
-	            [X, Y] = meshgrid(x_arr, y_arr);
-				surf(X, Y, n_xy); colorbar;
-				axis square; shading interp;
-				xlabel('x (\mum)'); ylabel('y (\mum)');
+	            %subplot(133);
+	            %[X, Y] = meshgrid(x_arr, y_arr);
+				%surf(X, Y, n_xy); colorbar;
+				%axis square; shading interp;
+				%xlabel('x (\mum)'); ylabel('y (\mum)');
 	        else 
 	        	rho_arr = linspace(0, opt_fiber_params('nr')*opt_fiber_params('dr'), opt_fiber_params('nr'));
 	        	n_clad = utils.get_index_at_wavelength(opt_fiber_params('center_wavelength_nm'));
@@ -128,21 +140,21 @@ classdef utils
 				n_rho_init = n_clad + init_fiber_params('nr_offset_from_cladding');
 				n_change = n_rho - n_rho_init;
 
-				subplot(131);
+				subplot(121);
 				plot(rho_arr*1e6, n_change*1e3, 'linewidth', 2); axis square; axis tight;
 	            xlabel('r (\mum)'); ylabel('n_{opt}-n_{init} \times 10^{-3}');
 
-				subplot(132);
+				subplot(122);
 				plot(rho_arr*1e6, n_rho, rho_arr*1e6, n_rho_init, 'linewidth', 2); axis square; axis tight;
 	            xlabel('r (\mum)'); ylabel('n(r)');
 	            legend('Optimized', 'Initial');
 
-	            subplot(133);
-	            [n_xy, x_arr, y_arr] = profiles.synthesize_nxy_from_nr(n_rho, rho_arr, n_clad);
-	            [X, Y] = meshgrid(x_arr, y_arr);
-	            surf(X*1e6, Y*1e6, n_xy); colorbar;
-				axis square; shading interp;
-				xlabel('x (\mum)'); ylabel('y (\mum)');
+	            %subplot(133);
+	            %[n_xy, x_arr, y_arr] = profiles.synthesize_nxy_from_nr(n_rho, rho_arr, n_clad);
+	            %[X, Y] = meshgrid(x_arr, y_arr);
+	            %surf(X*1e6, Y*1e6, n_xy); colorbar;
+				%axis square; shading interp;
+				%xlabel('x (\mum)'); ylabel('y (\mum)');
 	        end
 	        	
 	       	dsfig('Fiber Properties');
@@ -234,6 +246,7 @@ classdef utils
 
 			% center wavelength
 			n_clad = utils.get_index_at_wavelength(lambda_nm);
+			fib_params('n_clad') = n_clad;
 			if(fib_params('axially_symm'))
 				rho_arr = linspace(0, fib_params('nr')*fib_params('dr'), fib_params('nr'));
 				[nxy_offset_from_cladding, x_arr, y_arr] = profiles.synthesize_nxy_from_nr(fib_params('nr_offset_from_cladding'), rho_arr, 0);

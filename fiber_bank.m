@@ -101,6 +101,51 @@ classdef fiber_bank
 			fib_params('nr_offset_from_cladding') = dn_fiber;
 		end
 
+		function [fib_params] = get_RCF_2(obj) % graded-index ring-core fiber (free-form)
+			% Parameters different from: Feng, F., Guo, X., Gordon, G. S. D., Jin, X. Q., Payne, F. P., Jung, Y., … Wilkinson, T. D. (2016). All-optical mode-group division multiplexing over a graded-index ring-core fiber with single radial mode. 2016 Optical Fiber Communications Conference and Exhibition, OFC 2016, 3–5.
+			u = utils();
+            fib_params = containers.Map;
+
+			fib_params('nx') = 100;
+			fib_params('ny') = 100;
+			fib_params('dx') = 0.20e-6;
+			fib_params('dy') = 0.20e-6;
+			fib_params('center_wavelength_nm') = 1550;
+			fib_params('d_wavelength_nm') = 0.001;
+			fib_params('relative_index_diff_delta') = 0.01;
+			fib_params('ring_radius_m') = 6*1e-6;
+			fib_params('ring_thickness_m') = 4*1e-6;
+			fib_params('alpha_power') = 8;
+			fib_params('axially_symm') = false;
+
+			n_clad = u.get_index_at_wavelength(fib_params('center_wavelength_nm'));
+			[dn_fiber, ~, ~] = obj.profile_generator.get_nxy_graded_index_ring_core_profile(fib_params('nx'), fib_params('ny'), fib_params('dx'), fib_params('dy'), fib_params('relative_index_diff_delta'), fib_params('ring_radius_m'), fib_params('ring_thickness_m'), n_clad, fib_params('alpha_power'));
+			fib_params('nxy_offset_from_cladding') = dn_fiber;
+		end
+
+		function [fib_params] = get_RCF_3(obj) % ring-core fiber (free-form)
+			% Parameters from: Kasahara, M., Saitoh, K., Sakamoto, T., Hanzawa, N., Matsui, T., Tsujikawa, K., & Yamamoto, F. (2014). Design of three-spatial-mode ring-core fiber. Journal of Lightwave Technology, 32(7), 1337–1343. https://doi.org/10.1109/JLT.2014.2304732
+			u = utils();
+            fib_params = containers.Map;
+
+			fib_params('nx') = 100;
+			fib_params('ny') = 100;
+			fib_params('dx') = 0.20e-6;
+			fib_params('dy') = 0.20e-6;
+			fib_params('center_wavelength_nm') = 1550;
+			fib_params('d_wavelength_nm') = 0.001;
+			fib_params('relative_index_diff_delta') = 0.8*1e-2;
+			a = 7*1e-6; d = 2*a*0.3; % parameters from Kasahara, M et al. for d/2a = 0.3
+			fib_params('ring_radius_m') = a/2 + d/4; % converting to notation from X Jin et al.
+			fib_params('ring_thickness_m') = a - d/2; % converting to X Jin et al.
+			fib_params('alpha_power') = 100; % high alpha = effectively step index
+			fib_params('axially_symm') = false;
+
+			n_clad = u.get_index_at_wavelength(fib_params('center_wavelength_nm'));
+			[dn_fiber, ~, ~] = obj.profile_generator.get_nxy_graded_index_ring_core_profile(fib_params('nx'), fib_params('ny'), fib_params('dx'), fib_params('dy'), fib_params('relative_index_diff_delta'), fib_params('ring_radius_m'), fib_params('ring_thickness_m'), n_clad, fib_params('alpha_power'));
+			fib_params('nxy_offset_from_cladding') = dn_fiber;
+		end
+
 		function [fib_params] = get_4C_MCF_debug(obj)
 			u = utils();
             fib_params = containers.Map;
