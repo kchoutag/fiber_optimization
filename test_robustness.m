@@ -39,5 +39,14 @@ classdef test_robustness
 			end
 		end
 
+		function [fiber_params_out] = change_gridding(fiber_params, interp_factor)
+			u = utils();
+			fiber_params_out = containers.Map(fiber_params.keys, fiber_params.values);
+			rho_in = linspace(0, fiber_params_out('nr')*fiber_params_out('dr'), fiber_params_out('nr'));
+			[fiber_params_out('nr_offset_from_cladding'), rho_out] = u.interpolate_index_radial(fiber_params_out('nr_offset_from_cladding'), rho_in, interp_factor);
+			fiber_params_out('nr') = length(fiber_params_out('nr_offset_from_cladding'));
+			fiber_params_out('dr') = rho_out(2) - rho_in(1);
+		end
+
 	end
 end

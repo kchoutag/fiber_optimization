@@ -11,12 +11,12 @@ classdef utils
 			end
 			cell_array = nan(dim1,dim2);
 			for ii = 1:dim1
-				cell_array(ii,1:length(cell_in{ii})) = sort(cell_in{ii}); %TODO: sorting is okay here?
+				cell_array(ii,1:length(cell_in{ii})) = sort(cell_in{ii},'descend');
             end
             
             if(length(x_vals) > 1)
             	if(strcmp(style,'line'))
-                	plot(x_vals, cell_array,'-b','linewidth',2);
+                	plot(x_vals, cell_array,'-k','linewidth',2);
                 elseif(strcmp(style, 'circle'))
                 	plot(x_vals, cell_array,'ko','markersize',3,'markerfacecolor', 'k');
                 elseif(strcmp(style, 'plus'))
@@ -366,6 +366,35 @@ classdef utils
 
 		function c = get_speed_light()
 			c = 299792458; % meters per second
+		end
+
+		function dn_out = apply_gaussian_filter_radial(dn_in, rho_arr, sigma_gaussian)
+			% Apply a 1-D Gaussian filter with STD sigma_gaussian to the radial index distribution
+
+			dr = rho_arr(2) - rho_arr(1);
+
+			n_taps = ceil(6*sigma_gaussian/dr);
+			if(mod(n_taps,2) == 0)
+				n_taps = n_taps + 1; % need an odd number of taps
+			end
+
+			gaussian = @(sigma, x) (1/(sigma*sqrt(2*pi)))* exp(-0.5*x.^2 / sigma^2);
+			x_taps = (-(n_taps-1)/2:(n_taps-1)/2)*dr;
+			g_filt = gaussian(sigma_gaussian, x_taps);
+			delay = (n_taps-1)/2;
+
+			dn_out = filter(g_filt, 1, [dn_in zeros(1,delay)]) / sum(abs(g_filt));
+			%post-process the delay
+			dn_out = dn_out(delay+1:end);
+		end
+
+		function [dn_out, rho_out] = interpolate_index_radial(dn_in, rho_in, interp_factor)
+			% Apply the interp1 function to test the effects of gridding
+			% interp_factor = interpolation factor, < 1 if we want to shrink, > 1 if we want to expand
+			n_pts_in = length(rho_in);
+			n_pts_out = round(n_pts_in*interp_factor);
+			rho_out = linspace(min(rho_in), max(rho_in), n_pts_out);
+			dn_out = interp1(rho_in, dn_in, rho_out);
 		end
 
 		function print_fiber_summary()

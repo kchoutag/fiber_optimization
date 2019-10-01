@@ -75,6 +75,11 @@ classdef optimizers
             end
             d_n_rho = d_n_rho .* (fiber_params('nr_offset_from_cladding') + n_clad);
 
+            % smooth the index update
+			if(opt_params('apply_smoothing') == true)
+				d_n_rho = utils.apply_gaussian_filter_radial(d_n_rho, rho_arr, opt_params('gaussian_filter_std_m'));
+			end
+
             % normalize index update
             small_val = 1e-12; % to prevent divide by zero
             d_n_rho = opt_params('max_dn')*d_n_rho/max(abs(d_n_rho) + small_val);
@@ -120,8 +125,14 @@ classdef optimizers
             	end
             end
 
+            % smooth the index update
+			if(opt_params('apply_smoothing') == true)
+				d_n_rho = utils.apply_gaussian_filter_radial(d_n_rho, rho_arr, opt_params('gaussian_filter_std_m'));
+			end
+
             % normalize index update
-            d_n_rho = step_sign*opt_params('max_dn')*d_n_rho/max(abs(d_n_rho));
+            small_val = 1e-12; % to prevent divide by zero
+            d_n_rho = step_sign*opt_params('max_dn')*d_n_rho/max(abs(d_n_rho) + small_val);
 		end
 
 		function [d_n_rho] = opt_chromatic_dispersion_radial(obj, fiber_params, init_fiber_params, opt_params)

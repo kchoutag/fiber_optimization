@@ -19,19 +19,23 @@ classdef experiment
 			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container
 
 			opt_params = containers.Map;
-			opt_params('opt_steps') = 100;%80;
+			opt_params('opt_steps') = 200;
 			opt_params('max_dn') = 1e-5;
 			opt_params('direction') =  "MIN"; 
+			opt_params('apply_smoothing') = true;
+			opt_params('gaussian_filter_std_m') = 1e-6;
+
 
 			rms_MD_hist = [rms(fiber_params('MD_coeffs_psm'))];
 			MD_coeffs_hist = {fiber_params('MD_coeffs_psm')};
 
+			rho_arr = linspace(0, fiber_params('nr')*fiber_params('dr'), fiber_params('nr'));
 			for nn = 1:opt_params('opt_steps')
 				disp(sprintf('Running iteration %d of %d...', nn, opt_params('opt_steps')));
 				% compute and apply the index update
 				index_update = obj.optimizer.opt_modal_dispersion_radial(fiber_params, init_fiber_params, opt_params);
 				fiber_params('nr_offset_from_cladding') = fiber_params('nr_offset_from_cladding') + index_update;
-
+				
 				% update the realized fiber properties
 				fiber_params = utils.solve_fiber_properties(fiber_params);
 
@@ -39,18 +43,17 @@ classdef experiment
 				rms_MD_hist = [rms_MD_hist rms(fiber_params('MD_coeffs_psm'))];
 				MD_coeffs_hist{end+1} = fiber_params('MD_coeffs_psm');
 
-				
+
 				% plot the results
 				dsfig('JLT figure 1');
-				rho_arr = linspace(0, fiber_params('nr')*fiber_params('dr'), fiber_params('nr'));
 	        	n_clad = utils.get_index_at_wavelength(fiber_params('center_wavelength_nm'));
 				n_rho = n_clad + fiber_params('nr_offset_from_cladding');
 				n_rho_init = n_clad + init_fiber_params('nr_offset_from_cladding');
 				n_change = n_rho - n_rho_init;
 
 				subplot(231);
-				plot(rho_arr*1e6, n_change*1e3, 'linewidth', 2); axis square; axis tight;
-	            xlabel('r (\mum)'); ylabel('(n_{opt}-n_{init}) \times 10^{-3}');
+				plot(rho_arr*1e6, n_change, 'k', 'linewidth', 2); axis square; axis tight;
+	            xlabel('r (\mum)'); ylabel('n_{opt}-n_{init}');
 
 				subplot(232);
 				plot(rho_arr*1e6, n_rho, rho_arr*1e6, n_rho_init, 'linewidth', 2); axis square; axis tight;
@@ -58,27 +61,47 @@ classdef experiment
 	            legend('Optimized', 'Initial');
 
 	            subplot(233);
-				plot((fiber_params('neff') - n_clad)*1e3,'-+', 'linewidth', 2);
-				xlabel('Mode index'); ylabel('(n_{eff} - n_{clad}) \times 10^{-3}');
+				plot((fiber_params('neff') - n_clad),'k-+', 'linewidth', 2);
+				xlabel('Mode index'); ylabel('n_{eff} - n_{clad}');
 				axis square; axis tight;
 
 				utils.plot_cell_array('JLT figure 1', 2, 3, [4 5], 1:nn+1, MD_coeffs_hist, 'Iteration', 'Group delay (ps/m)', 'line');
 				dsfig('JLT figure 1'); subplot(2,3,6);
-				plot(1:nn+1, rms_MD_hist, 'linewidth', 2);
+				plot(1:nn+1, rms_MD_hist, 'k', 'linewidth', 2);
 				xlabel('Iteration'); ylabel('rms group delay (ps/m)'); axis tight;
 				
 				%utils.plot_results(fiber_params, init_fiber_params);
 				drawnow;
 			end
+			interp_factor = 1.5;
+			fiber_bigger_grid = test_robustness.change_gridding(fiber_params, interp_factor);
+			fiber_bigger_grid = utils.solve_fiber_properties(fiber_bigger_grid);
+			dsfig('Changing Grid');
+			subplot(121);
+			plot(fiber_bigger_grid('nr_offset_from_cladding'));
+			title('Shape of index profile in new grid');
+			subplot(122);
+			bar(fiber_bigger_grid('MD_coeffs_psm'));
+			title('Group delays (ps/m)')
+			drawnow;
 
-			lambda_arr = linspace(1500,1600,20)*1e-9;
+			lambda_arr = linspace(1400,1900,30)*1e-9;
 			rms_gd_wavelength_variation = test_robustness.vary_wavelength_rms_gd(fiber_params, lambda_arr);
 			init_rms_gd_wavelength_variation = test_robustness.vary_wavelength_rms_gd(init_fiber_params, lambda_arr);
 			dsfig('JLT figure 2');
+			subplot(121);
 			plot(lambda_arr*1e9, rms_gd_wavelength_variation, lambda_arr*1e9, init_rms_gd_wavelength_variation, 'linewidth', 2);
 			xlabel('Wavelength (nm)'); ylabel('rms group delay (ps/m)')
 			legend('Optimized', 'Initial');
 			axis square; axis tight;
+			D_wavelength_variation = test_robustness.vary_wavelength_number_modes(fiber_params, lambda_arr);
+			init_D_wavelength_variation = test_robustness.vary_wavelength_number_modes(init_fiber_params, lambda_arr);
+			dsfig('JLT figure 2');
+			subplot(122);
+			plot(lambda_arr*1e9, D_wavelength_variation, lambda_arr*1e9, init_D_wavelength_variation, 'linewidth', 2);
+			xlabel('Wavelength (nm)'); ylabel('Number of modes D')
+			legend('Optimized', 'Initial');
+			axis square; axis tight; %ylim([0, max(max(D_wavelength_variation), max(init_D_wavelength_variation))+1]);
 		end
 
 		function obj = RCF_freeform_increase_degeneracies(obj) % see if RCF -> MCF when we try to increase the modal degeneracies
@@ -88,7 +111,7 @@ classdef experiment
 			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container
 
 			opt_params = containers.Map;
-			opt_params('opt_steps') = 280;
+			opt_params('opt_steps') = 380;
 			opt_params('max_dn') = 2e-4;
 			opt_params('direction') =  "RCF_to_MCF";
 
@@ -106,8 +129,8 @@ classdef experiment
 
 				% update the history
 				neff_hist{end+1} = fiber_params('neff')- fiber_params('n_clad');
-				utils.plot_cell_array('neff evolution for JLT', 1, 3, 1:3, 1:nn+1, neff_hist , 'Iteration', 'n_{eff}-n_{clad}', 'circle');
-				pbaspect([3,1,1]);
+				utils.plot_cell_array('neff evolution for JLT', 1, 1, 1, 1:nn+1, neff_hist , 'Iteration', 'n_{eff}-n_{clad}', 'line');
+				axis square;
 				utils.plot_results(fiber_params, init_fiber_params);
 
 				drawnow;

@@ -7,8 +7,8 @@ set(0,'defaultaxesfontsize',14);
 set(gca, 'FontName', 'Arial'); close(gcf);
 
 test = experiment();
-%test.MMF_GI_radial_reduce_modal_dispersion(); % WORKING
-test.RCF_freeform_increase_degeneracies(); % UNDER DEBUG
+test.MMF_GI_radial_reduce_modal_dispersion(); % WORKING
+%test.RCF_freeform_increase_degeneracies(); % WORKING
 %test.MMF_SI_radial_reduce_coupling();
 %test.MMF_GI_radial_reduce_coupling();
 %test.SMF_SI_increase_CD();
