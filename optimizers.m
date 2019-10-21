@@ -24,6 +24,7 @@ classdef optimizers
 				des_neff = ones(1,D_optimize)*mean(init_neff);
 			elseif(strcmp(opt_params('direction'),'RCF_to_MCF'))
 				%Target the same core index but reduce the current spread of neff during each iteration
+				D_optimize = D;
 				des_neff = init_neff(1) + 0.5*linspace(0, curr_neff(D_optimize)-curr_neff(1), D_optimize);
             end
 

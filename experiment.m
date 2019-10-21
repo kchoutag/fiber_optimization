@@ -67,8 +67,9 @@ classdef experiment
 
 				utils.plot_cell_array('JLT figure 1', 2, 3, [4 5], 1:nn+1, MD_coeffs_hist, 'Iteration', 'Group delay (ps/m)', 'line');
 				dsfig('JLT figure 1'); subplot(2,3,6);
-				plot(1:nn+1, rms_MD_hist, 'k', 'linewidth', 2);
+				plot(0:nn, rms_MD_hist, 'k', 'linewidth', 2);
 				xlabel('Iteration'); ylabel('rms group delay (ps/m)'); axis tight;
+				ylim([0 max(rms_MD_hist)]);
 				
 				%utils.plot_results(fiber_params, init_fiber_params);
 				drawnow;
@@ -130,7 +131,7 @@ classdef experiment
 				% update the history
 				neff_hist{end+1} = fiber_params('neff')- fiber_params('n_clad');
 				utils.plot_cell_array('neff evolution for JLT', 1, 1, 1, 1:nn+1, neff_hist , 'Iteration', 'n_{eff}-n_{clad}', 'line');
-				axis square;
+				pbaspect([6 2 1]);
 				utils.plot_results(fiber_params, init_fiber_params);
 
 				drawnow;
