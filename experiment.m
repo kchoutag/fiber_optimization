@@ -63,7 +63,9 @@ classdef experiment
 	            subplot(233);
 				plot((fiber_params('neff') - n_clad),'k-+', 'linewidth', 2);
 				xlabel('Mode index'); ylabel('n_{eff} - n_{clad}');
-				axis square; axis tight;
+				ylim([0 max(fiber_params('neff') - n_clad)]);
+				xlim([1 fiber_params('D')]);
+				axis square; 
 
 				utils.plot_cell_array('JLT figure 1', 2, 3, [4 5], 1:nn+1, MD_coeffs_hist, 'Iteration', 'Group delay (ps/m)', 'line');
 				dsfig('JLT figure 1'); subplot(2,3,6);
@@ -103,6 +105,40 @@ classdef experiment
 			xlabel('Wavelength (nm)'); ylabel('Number of modes D')
 			legend('Optimized', 'Initial');
 			axis square; axis tight; %ylim([0, max(max(D_wavelength_variation), max(init_D_wavelength_variation))+1]);
+
+			%save the results
+			if(1)
+				save('saved_fibers/GI_MMF_low_MD.mat');
+			end
+		end
+
+		function obj = MMF_GI_radial_reduce_modal_dispersion_part2(obj)
+			% continue analysis of optimization without designing the fiber from scratch again
+			load('saved_fibers/GI_MMF_low_MD.mat');
+
+			figure();
+
+			x = init_fiber_params('nr_offset_from_cladding');
+			y = fiber_params('nr_offset_from_cladding');
+ 
+			diff_nr = y - x;
+			plot(diff_nr);
+
+			sweep_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy
+			rms_gd_variation = [];
+			r_arr =  0:0.01:1.5;
+			for rr = 1:length(r_arr)
+				r = r_arr(rr);
+				disp(sprintf('testing sensitivity of optimization %d of %d...', rr, length(r_arr)));
+				sweep_fiber_params('nr_offset_from_cladding') = init_fiber_params('nr_offset_from_cladding') + r*diff_nr;
+				sweep_fiber_params = utils.solve_fiber_properties(sweep_fiber_params);
+				rms_gd_variation = [rms_gd_variation rms(sweep_fiber_params('MD_coeffs_psm'))];
+			end
+
+			plot(r_arr, rms_gd_variation, 'k', 'linewidth', 2);
+			xlabel('Deviation parameter f'); ylabel('rms group delay (ps/m)');
+			axis tight; axis square;
+			ylim([0 max(rms_gd_variation)]);
 		end
 
 		function obj = RCF_freeform_increase_degeneracies(obj) % see if RCF -> MCF when we try to increase the modal degeneracies

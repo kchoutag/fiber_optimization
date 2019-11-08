@@ -102,10 +102,10 @@ classdef optimizers
 			MD_coeffs_psm = fiber_params('MD_coeffs_psm'); % MD coefficients (= group delay ps per unit m) are already zero-mean
 
 			% set the optimization target
-			if(strcmp(opt_params('direction'),'MIN')) %TODO: check the signs??
-				step_sign = 1;
+			if(strcmp(opt_params('direction'),'MIN'))
+				step_sign = -1; % update in direction opposite to gradient
 			else
-				step_sign = -1;
+				step_sign = 1;  % update in direction aligned with gradient
             end
 
             % compute the index update
@@ -118,7 +118,7 @@ classdef optimizers
             		mode_mm_left_intensity_at_rho   = utils.integrate_mode_on_circle(fields_left(:,:,mm), x_arr, y_arr, rho);
             		mode_mm_right_intensity_at_rho  = utils.integrate_mode_on_circle(fields_right(:,:,mm), x_arr, y_arr, rho);
 
-            		d_MDi_dn = -1*n_rho_curr(rr)*( mode_mm_right_intensity_at_rho/neff_right(mm)...
+            		d_MDi_dn = n_rho_curr(rr)*( mode_mm_right_intensity_at_rho/neff_right(mm)...
             									 - mode_mm_left_intensity_at_rho/neff_left(mm));
 
             		% minimize the rms MD --> d(rms MD)/dn proportional to sum_i(MD_i * dMD_i/dn)
