@@ -341,6 +341,17 @@ classdef experiment
 		%     UNDER DEVELOPMENT       %
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+		function obj = MingJunLi_1(obj)
+			% compare design method with Ming Jung Li's patent
+			x = 0:0.001:1;
+			for n = 1:5
+				p = utils.poly_basis(n,x);
+				plot(p); hold on;
+			end
+
+			
+		end
+
 		
 
 		function obj = SMF_SI_increase_CD(obj)
@@ -379,18 +390,6 @@ classdef experiment
 				utils.plot_results(fiber_params, init_fiber_params);
 				drawnow;
 			end
-		end
-
-		function obj = MCF_reduce_MD(obj)
-		end
-
-		function obj = Elliptical_Core_Fiber_optimization(obj)
-		end
-
-		function obj = OAM_reduce_coupling(obj)
-		end
-
-		function obj = OM4_OM5_optimization(obj)
 		end
 
 		function obj = run_playground(obj) % workspace for debugging and/or developing new fiber designs

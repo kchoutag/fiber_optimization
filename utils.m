@@ -1,5 +1,26 @@
 classdef utils
 	methods(Static)
+
+		function y = poly_basis(n, x)
+			% expanding polynomial using Ming Jun Li's patent
+			switch n
+				case 1
+					p = @(z) (3.674235) * z .* log(z);
+				case 2
+					p =  @(z) (7.949433 - 18.8431*z) .* z .* log(z);
+				case 3
+					p = @(z) (13.54535 - 75.4887*z + 84.72897*z.^2) .* z .* log(z);
+				case 4
+					p = @(z) (20.52056 - 196.732*z + 499.5175*z.^2 - 363.359*z.^3) .* z .* log(z);
+				case 5
+					p = @(z) (28.91456 - 416.337*z + 1767.727*z.^2 - 2839.75*z.^3 + 1522.765*z.^4).* z .* log(z);
+
+				otherwise
+					error('invalid polynomial');
+            end
+            y = p(x);
+		end
+
 		function plot_cell_array(fig_name, fig_rows, fig_cols, subplot_locs, x_vals, cell_in, x_label, y_label, style)
 			dsfig(fig_name);
 			subplot(fig_rows, fig_cols, subplot_locs);
