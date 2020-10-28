@@ -19,8 +19,9 @@ classdef utils
 					error('invalid polynomial');
             end
             y = p(x);
+            y(isnan(y)) = 0; % hack for z = 0, to make 0 *log(0) = 0.
 		end
-
+		
 		function plot_cell_array(fig_name, fig_rows, fig_cols, subplot_locs, x_vals, cell_in, x_label, y_label, style)
 			dsfig(fig_name);
 			subplot(fig_rows, fig_cols, subplot_locs);
@@ -105,6 +106,33 @@ classdef utils
 			plot((fiber_params('neff') - n_clad)*1e3, '-+', 'linewidth', 2);
 			xlabel('Mode index'); ylabel('n_{eff} - n_{clad} (\times 10^{-3})');
 			axis square; axis tight;
+
+
+			dsfig('Modes of Fiber');
+			nx_modes = floor(sqrt(fiber_params('D')));
+			ny_modes = ceil(fiber_params('D')/nx_modes);
+			opt_fields = fiber_params('fields'); 
+			[ny, nx] = size(opt_fields(:,:,1));
+
+			allfields = zeros(nx_modes*nx, ny_modes*ny);
+			for ii = 1:fiber_params('D')
+				nr = floor((ii-1)/ny_modes) + 1;
+				nc = mod(ii-1,ny_modes)+1;
+				allfields((nr-1)*nx+1:nr*nx, (nc-1)*nx+1 : nc*nx) = abs(opt_fields(:,:,ii)).^2;
+			end
+			imagesc(allfields);
+			pbaspect([ny_modes nx_modes 1]); colorbar; axis off;
+		end
+
+		function MJL_visualize_fiber(fiber_params)
+			% Plots for Ming Jung Li fiber comparison
+	       	dsfig('Fiber properties');
+	       	
+			plot(fiber_params('MD_coeffs_psm'), '-+', 'linewidth', 2); hold on;
+			plot(120*[1 1], [min(fiber_params('MD_coeffs_psm')) max(fiber_params('MD_coeffs_psm'))], 'r--', 'linewidth', 2);
+			xlabel('Mode index'); ylabel('Group delays (ps/m)');
+			axis square; axis tight;
+			grid on;
 
 
 			dsfig('Modes of Fiber');
@@ -255,7 +283,13 @@ classdef utils
 
 		function [fib_params] = solve_fiber_properties(fib_params)
 			addpath('../modesolver-2011-04-22/');
-			n_modes_upper_lim = 70;
+			n_modes_upper_lim = 250; % use 70 modes for normal tests
+
+			if isKey(fib_params, 'D_upper_limit')
+				% limit the number of modes if upper limit is specified (usually to prevent lossy modes)
+				n_modes_upper_lim = min(n_modes_upper_lim, fib_params('D_upper_limit'));
+			end
+			
 			tol_neff = 0.15*1e-3; % to remove very-weakly guided modes
 			c = utils.get_speed_light();
 			lambda_nm = fib_params('center_wavelength_nm');

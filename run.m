@@ -7,8 +7,10 @@ set(0,'defaultaxesfontsize',14);
 set(gca, 'FontName', 'Arial'); close(gcf);
 
 test = experiment();
-test.MingJunLi_1(); 
-%test.MMF_GI_radial_reduce_modal_dispersion(); % WORKING
+%test.test_robustness_GI_MMF_low_MD();
+%results = test.MingJunLi_vs_Karthik_1(); % Ming Jun Li's fiber and his optimization
+%results = test.MingJunLi_vs_Karthik_2();  % Karthik's optimization on Ming Jun Li's fiber
+test.MMF_GI_radial_reduce_modal_dispersion(); % WORKING
 %test.MMF_GI_radial_reduce_modal_dispersion_part2(); % 
 %test.RCF_freeform_increase_degeneracies(); % WORKING
 %test.MMF_SI_radial_reduce_coupling();

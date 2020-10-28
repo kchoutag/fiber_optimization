@@ -1,5 +1,52 @@
 classdef profiles
 	methods(Static)
+
+		function [dn_fiber, n_clad, rho_arr, alpha_part, non_alpha_part] = get_nr_MJL_profile(B, nr, dr, relative_dn, a_core_radius_m, n_clad, alpha0)
+			% Ming Jun Li's patent. B is coefficients of perturbation in polynomial basis.
+			% dn_fiber = index variation in (x,y) that is an offset from the cladding index, i.e. n(x,y) = dn_fiber(x,y) + n_clad
+			rho_arr = linspace(0, nr*dr, nr);
+
+			N = length(B); 	% number of correction terms in polynomial basis
+
+            % form generalized perturbation H using correction terms
+            G = zeros(1, nr);
+
+            pure_alpha 	= zeros(1, nr);	% pure alpha contributions
+            H 			= zeros(1, nr); % non alpha contributions
+			for rr = 1:nr
+				rho_norm = rho_arr(rr) / a_core_radius_m;
+				if rho_norm < 1 % region where correction is valid
+					
+					% form pure alpha law core
+					pure_alpha(rr) = rho_norm^alpha0;
+
+					% add non-alpha contributions
+					for nn = 1:N 
+						H(rr) = H(rr) + B(nn) * utils.poly_basis(nn, rho_norm);
+					end
+				end
+			end
+			G = pure_alpha + H;
+			alpha_part = pure_alpha;
+			non_alpha_part = H;
+
+
+			n_core = n_clad / sqrt(1 - 2*relative_dn);
+			n_rho = n_clad * ones(1, nr);
+			for rr = 1:nr
+				ro = rho_arr(rr);
+				if ro <= a_core_radius_m
+					% inside the core
+					n_rho(rr) = n_core * sqrt(1 - 2*relative_dn*G(rr));
+				else
+					% inside the cladding
+					n_rho(rr) = n_clad;
+				end
+			end
+			dn_fiber = n_rho - n_clad;
+
+		end
+
 		function [index_profile, x_arr, y_arr] = synthesize_nxy_from_nr(n_rho, rho_arr, nan_fill_val)
 			% rho is the radial variable
 			% n_rho is the radial distribution of the index evaluated at rho_arr
@@ -25,6 +72,8 @@ classdef profiles
 		    % griddata gives nan for extrapolated points so replace NaNs with a refractive index value
 		    index_profile(isnan(index_profile)) = nan_fill_val; 
 		end
+
+
 
 		function [dn_fiber, n_clad, x_grid, y_grid] = get_nxy_alpha_law_graded_profile(nx, ny, dx, dy, relative_dn, a_core_radius_m, n_clad, alpha_power)
 			% Source: Physical modeling of 10 gbe optical communication systems - Gholami, Molin and Sillard, JLT 2011

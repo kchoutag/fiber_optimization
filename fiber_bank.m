@@ -28,6 +28,31 @@ classdef fiber_bank
 			fib_params('nxy_offset_from_cladding') = dn_fiber;
 		end
 
+		function [fib_params] = get_MJL_Alpha2p095(obj, center_wavelength_nm, B) % graded index alpha=2.095 profile (axially-symmetric)
+			% B is a list of coefficients from MJL's patent
+
+			u = utils();
+            fib_params = containers.Map;
+
+			fib_params('nr') = 100;
+			fib_params('dr') = 0.3e-6;
+			fib_params('center_wavelength_nm') = center_wavelength_nm;
+			fib_params('d_wavelength_nm') = 0.001;
+			fib_params('relative_index_diff_delta') = 0.01;
+			fib_params('a_core_radius_m') = 25*1e-6;
+			fib_params('alpha_power') = 2.095; 
+			fib_params('axially_symm') = true;
+			fib_params('D_upper_limit') = 120;
+
+			n_clad = u.get_index_at_wavelength(fib_params('center_wavelength_nm'));
+			[dn_fiber, ~, rho_arr, alpha_part, non_alpha_part] = obj.profile_generator.get_nr_MJL_profile(B, fib_params('nr'), fib_params('dr'), fib_params('relative_index_diff_delta'), fib_params('a_core_radius_m'), n_clad, fib_params('alpha_power'));
+			
+			fib_params('nr_offset_from_cladding') = dn_fiber;
+
+			fib_params('nr_alpha_part') 	= alpha_part;
+			fib_params('nr_non_alpha_part') = non_alpha_part;
+		end
+
 		function [fib_params] = get_GI_MMF_2(obj) % graded index alpha=2 profile (axially-symmetric)
 			u = utils();
             fib_params = containers.Map;

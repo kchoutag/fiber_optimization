@@ -12,6 +12,216 @@ classdef experiment
 		%           WORKING         %
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+		function results = MingJunLi_vs_Karthik_1(obj)
+			% run Ming Jung Li's fiber
+			lambda_nm = 850;
+
+			B = [];
+            fib_orig = obj.bank.get_MJL_Alpha2p095(lambda_nm, B);
+            rho_arr = linspace(0, fib_orig('nr')*fib_orig('dr'), fib_orig('nr'));
+
+
+            B = [-0.0007 0.0007]; 
+            %B = [0.0007]; 
+            fib_pert = obj.bank.get_MJL_Alpha2p095(lambda_nm, B);
+
+            dsfig('Index profiles');
+ 			subplot(121);
+            plot(rho_arr*1e6, fib_orig('nr_offset_from_cladding'), ...
+            	 rho_arr*1e6, fib_pert('nr_offset_from_cladding'), 'linewidth', 2);
+            xlabel('Radial position r [\mum]'); ylabel('n(r)-n_{clad} (r)');
+            legend('Pure alpha: n_{orig}(r)', 'Alpha + modified by B: n_{pert}(r)');
+            grid on;
+
+            subplot(122);
+            plot(rho_arr*1e6, fib_pert('nr_offset_from_cladding') - fib_orig('nr_offset_from_cladding'), ...
+            	'linewidth', 2);
+             xlabel('Radial position [\mum]'); ylabel('n_{pert}(r)-n_{orig} (r)');
+             grid on;
+            
+            dsfig('MJL Patent Fig. 6C');
+            plot(rho_arr*1e6, fib_pert('nr_non_alpha_part'), 'linewidth', 2);
+            xlabel('Radial position [\mum]'); ylabel('H(x) = G(x)-x^{a0/2}');
+            grid on;
+
+			D_valid = 120; % MJL's patent says only first 15 mode groups are considered. 15*16/2 = 120 modes total.
+			
+            results = [];
+            
+            % compare original and perturbed fiber
+            fib_orig = utils.solve_fiber_properties(fib_orig);
+			gds = fib_orig('MD_coeffs_psm');
+			gd_orig = rms(gds(1:D_valid))
+
+            
+			fib_pert = utils.solve_fiber_properties(fib_pert);
+			gds = fib_pert('MD_coeffs_psm');
+			gd_pert = rms(gds(1:D_valid))
+
+			utils.MJL_visualize_fiber(fib_pert);
+		end
+
+		function obj = MingJunLi_vs_Karthik_2(obj)
+			B = [-0.0007 0.0007]; 
+			lambda_nm = 850;
+
+			fiber_params = obj.bank.get_MJL_Alpha2p095(lambda_nm, B);
+			fiber_params = utils.solve_fiber_properties(fiber_params);
+
+			init_fiber_params = containers.Map(fiber_params.keys, fiber_params.values); % make copy of the init fiber params container
+
+			opt_params = containers.Map;
+			opt_params('opt_steps') = 100;
+			opt_params('max_dn') = 1e-5;
+			opt_params('direction') =  "MIN"; 
+			opt_params('apply_smoothing') = true;
+			opt_params('gaussian_filter_std_m') = 1e-6;
+
+
+			rms_MD_hist = [rms(fiber_params('MD_coeffs_psm'))];
+			MD_coeffs_hist = {fiber_params('MD_coeffs_psm')};
+
+			rho_arr = linspace(0, fiber_params('nr')*fiber_params('dr'), fiber_params('nr'));
+			for nn = 1:opt_params('opt_steps')
+				disp(sprintf('Running iteration %d of %d...', nn, opt_params('opt_steps')));
+				% compute and apply the index update
+				index_update = obj.optimizer.opt_modal_dispersion_radial(fiber_params, init_fiber_params, opt_params);
+				fiber_params('nr_offset_from_cladding') = fiber_params('nr_offset_from_cladding') + index_update;
+				
+				% update the realized fiber properties
+				fiber_params = utils.solve_fiber_properties(fiber_params);
+
+				% update the history
+				rms_MD_hist = [rms_MD_hist rms(fiber_params('MD_coeffs_psm'))];
+				MD_coeffs_hist{end+1} = fiber_params('MD_coeffs_psm');
+
+
+				% plot the results
+				dsfig('MJL fiber with my design method');
+	        	n_clad = utils.get_index_at_wavelength(fiber_params('center_wavelength_nm'));
+				n_rho = n_clad + fiber_params('nr_offset_from_cladding');
+				n_rho_init = n_clad + init_fiber_params('nr_offset_from_cladding');
+				n_change = n_rho - n_rho_init;
+
+				subplot(231);
+				plot(rho_arr*1e6, n_change, 'k', 'linewidth', 2); axis square; axis tight;
+	            xlabel('r (\mum)'); ylabel('n_{opt}-n_{init}');
+
+				subplot(232);
+				plot(rho_arr*1e6, n_rho, rho_arr*1e6, n_rho_init, 'linewidth', 2); axis square; axis tight;
+	            xlabel('r (\mum)'); ylabel('n(r)');
+	            legend('Optimized', 'Initial');
+
+	            subplot(233);
+				plot((fiber_params('neff') - n_clad),'k-+', 'linewidth', 2);
+				xlabel('Mode index'); ylabel('n_{eff} - n_{clad}');
+				ylim([0 max(fiber_params('neff') - n_clad)]);
+				xlim([1 fiber_params('D')]);
+				axis square; 
+
+				utils.plot_cell_array('MJL fiber with my design method', 2, 3, [4 5], 1:nn+1, MD_coeffs_hist, 'Iteration', 'Group delay (ps/m)', 'line');
+				dsfig('MJL fiber with my design method'); subplot(2,3,6);
+				plot(0:nn, rms_MD_hist, 'k', 'linewidth', 2);
+				xlabel('Iteration'); ylabel('rms group delay (ps/m)'); axis tight;
+				ylim([0 max(rms_MD_hist)]);
+				
+				%utils.plot_results(fiber_params, init_fiber_params);
+				drawnow;
+			end
+
+			%save the results
+			if(1)
+				save('saved_fibers/MJL_Karthik_optimized_fiber.mat');
+			end
+		end
+
+		function obj = test_robustness_GI_MMF_low_MD(obj)
+			load('saved_fibers/GI_MMF_low_MD.mat');
+
+
+            % Used this plot to figure out the max spatial frequency is ~0.25e6 1/m
+            % figure;
+            % fx = 1/(rho_arr(2) - rho_arr(1));
+            % plot(linspace(-fx/2, fx/2, length(n_change)), abs(fftshift(fft(n_change))));
+
+        	rng(101);
+
+            dsfig('Robustness: low frequency perturbations');
+            opt_profile = fiber_params('nr_offset_from_cladding');
+            opt_change = n_change;
+            
+            subplot(131);
+            plot(1:10);
+            axis square;
+            title('Placeholder for f rescaling plot');
+
+            % EXAMPLE OF PERTURBATION
+            subplot(132); 
+            plot(rho_arr*1e6, opt_change, 'linewidth', 2, 'DisplayName', sprintf('Optimal, rms GD = %.2f ps/km', 1e3*rms(fiber_params('MD_coeffs_psm')))); 
+			hold on;
+			n_terms = 5;
+			f_pert = linspace(0.1, 0.25e6, n_terms); % used the commented out plot above to figure out max spatial frequency is ~0.25e6 1/m
+			n_pert = zeros(size(opt_change));
+			pert_amplitude = 2e-5;
+			for ii = 1:n_terms
+				n_pert = n_pert + ...
+				(randn()*cos(2*pi*f_pert(ii)*rho_arr) + randn()*sin(2*pi*f_pert(ii)*rho_arr));
+            end
+            % normalize perturbation to optimal profile to zero-mean with amplitude pert_amplitude
+            n_pert = n_pert - mean(n_pert);
+			n_pert = pert_amplitude * (n_pert / rms(n_pert));
+			
+			fiber_params('nr_offset_from_cladding') = opt_profile + n_pert;
+			fiber_params = utils.solve_fiber_properties(fiber_params);
+
+			plot(rho_arr*1e6, opt_change + n_pert, 'linewidth', 2, 'DisplayName', sprintf('Optimal + random deviations, rms GD = %.2f ps/km', 1e3*rms(fiber_params('MD_coeffs_psm')))); 
+
+			axis square; axis tight;
+            xlabel('r (\mum)'); ylabel('n_{opt}-n_{init}');
+            legend;
+
+            % SWEEP PERTURBATION STRENGTHS
+            subplot(133); 
+            MAX_PERT_STD = 5e-5;
+            n_fibers_per_pert = 20;
+            n_pert_strengths = 10;
+            pert_amps = MAX_PERT_STD * (1/n_pert_strengths : 1/n_pert_strengths : 1);
+            rms_gd_table = zeros(n_fibers_per_pert, n_pert_strengths);
+
+            for ii = 1:n_pert_strengths
+            	fprintf('Testing perturbation strength #%d of %d...\n', ii, n_pert_strengths);
+            	for nn = 1:n_fibers_per_pert
+            		fprintf(' ...fiber #%d of %d\n', nn, n_fibers_per_pert);
+		            n_pert = zeros(size(n_change));
+					pert_amplitude = pert_amps(ii);
+					for kk = 1:n_terms
+						n_pert = n_pert + ...
+						(randn()*cos(2*pi*f_pert(kk)*rho_arr) + randn()*sin(2*pi*f_pert(kk)*rho_arr));
+					end
+					% normalize perturbation to optimal profile to zero-mean with amplitude pert_amplitude
+		            n_pert = n_pert - mean(n_pert);
+					n_pert = pert_amplitude * (n_pert / rms(n_pert));
+					
+					fiber_params('nr_offset_from_cladding') = opt_profile + n_pert;
+					fiber_params = utils.solve_fiber_properties(fiber_params);
+
+					rms_gd_table(nn, ii) = rms(fiber_params('MD_coeffs_psm'));
+				end
+			end
+            %boxplot(1e3*rms_gd_table, pert_amps);
+            plot(pert_amps, 1e3*mean(rms_gd_table,1), '-ko', 'linewidth', 2);
+			xlabel('rms amplitude of random deviation from optimal profile');
+			ylabel('Average rms GD of MMF (ps/km)');
+			axis square; axis tight;
+			ylims = ylim;
+			ylim([0 ylims(2)]);
+
+			% save the results
+			if(0)
+				save('saved_fibers/GI_MMF_low_MD_robustness.mat');
+			end
+		end
+
 		function obj = MMF_GI_radial_reduce_modal_dispersion(obj)
 			fiber_params = obj.bank.get_MMF_withTrench_1();
 			fiber_params = utils.solve_fiber_properties(fiber_params);
@@ -340,19 +550,6 @@ classdef experiment
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%     UNDER DEVELOPMENT       %
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-		function obj = MingJunLi_1(obj)
-			% compare design method with Ming Jung Li's patent
-			x = 0:0.001:1;
-			for n = 1:5
-				p = utils.poly_basis(n,x);
-				plot(p); hold on;
-			end
-
-			
-		end
-
-		
 
 		function obj = SMF_SI_increase_CD(obj)
 			fiber_params = obj.bank.get_Corning_SMF28(); %obj.bank.get_GI_SMF_1();
